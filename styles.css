@@ -115,8 +115,9 @@ aside {
 .logo-text {
   font-family: var(--font-title);
   font-weight: 700;
-  font-size: 18px;
+  font-size: 15px;
   line-height: 1.2;
+  white-space: nowrap;
   background: linear-gradient(to right, var(--text-main), var(--text-muted));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -939,4 +940,57 @@ tr:hover td {
 .settings-card p {
   font-size: 14px;
   color: var(--text-muted);
+}
+
+/* Google Drive Files List Styles */
+.drive-file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background-color: rgba(30, 41, 59, 0.4);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  transition: var(--transition-fast);
+}
+
+.drive-file-item:hover {
+  background-color: rgba(30, 41, 59, 0.7);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.drive-file-details {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 70%;
+}
+
+.drive-file-details i {
+  font-size: 20px;
+  color: var(--text-muted);
+}
+
+.drive-file-info {
+  overflow: hidden;
+}
+
+.drive-file-info h6 {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drive-file-info p {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.drive-file-actions {
+  display: flex;
+  gap: 8px;
 }

@@ -8,6 +8,9 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- Vanilla CSS Style -->
   <link rel="stylesheet" href="styles.css">
+  <!-- Google API Client and Google Identity Services for direct Drive Integration -->
+  <script src="https://apis.google.com/js/api.js" async defer></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -18,8 +21,8 @@
         <i class="fa-solid fa-scale-balanced"></i>
       </div>
       <div>
-        <span class="logo-text">PENAL CONTROL</span>
-        <span class="logo-sub">BUFETE DE ABOGADOS</span>
+        <span class="logo-text">SEBASTIANI & PUGA</span>
+        <span class="logo-sub">DEFENSA PENAL</span>
       </div>
     </div>
 
@@ -177,7 +180,7 @@
                 <th>Contacto</th>
                 <th>Fecha Ingreso</th>
                 <th>Estado</th>
-                <th style="width: 120px;">Acciones</th>
+                <th style="width: 200px;">Acciones</th>
               </tr>
             </thead>
             <tbody id="table-clients-body">
@@ -207,7 +210,7 @@
                 <th>Delito / Materia</th>
                 <th>Google Drive</th>
                 <th>Estado Juicio</th>
-                <th style="width: 120px;">Acciones</th>
+                <th style="width: 280px;">Acciones</th>
               </tr>
             </thead>
             <tbody id="table-cases-body">
@@ -291,11 +294,36 @@
           <h3><i class="fa-brands fa-google-drive"></i> Enlaces de Google Drive</h3>
           <p>Para resguardar de forma ordenada tus expedientes, carpetas de investigación y documentos formales:</p>
           <ul style="margin-left: 20px; font-size: 13px; color: var(--text-muted); display: flex; flex-direction: column; gap: 8px;">
-            <li>Crea una carpeta raíz en tu Google Drive (ej: "Bufete Penal").</li>
-            <li>Dentro, crea subcarpetas usando el RIT o nombre del cliente (ej: "RIT-1234-2026_JuanPerez").</li>
-            <li>Copia el enlace compartido de Google Drive ("Cualquier persona con el enlace puede ver/editar").</li>
-            <li>Pégalo en el campo <strong>Enlace Google Drive</strong> al registrar o modificar una causa para acceso directo.</li>
+            <li>Configura las credenciales de la API de Google Drive abajo.</li>
+            <li>La app creará automáticamente las carpetas de causas en tu Drive bajo el formato <strong>RIT - NombreCliente</strong>.</li>
+            <li>Podrás subir, ver y gestionar expedientes directamente desde el botón "Expediente" en la sección de Causas.</li>
+            <li>También puedes seguir pegando enlaces manuales de Google Drive si lo prefieres.</li>
           </ul>
+        </div>
+
+        <!-- Google Drive API Integration Card -->
+        <div class="settings-card">
+          <h3><i class="fa-solid fa-gears"></i> Credenciales Google Drive API</h3>
+          <p>Configura las credenciales de tu consola de Google Cloud para activar la subida automática de archivos directamente a tu Drive.</p>
+          <form id="form-settings-drive" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="settings-drive-client-id">Google Client ID</label>
+              <input type="text" id="settings-drive-client-id" placeholder="1234567890-abc123xyz.apps.googleusercontent.com" style="width: 100%; box-sizing: border-box;">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="settings-drive-root-folder">ID de Carpeta Raíz de Google Drive</label>
+              <input type="text" id="settings-drive-root-folder" placeholder="1aBcDeFgHiJkLmNoPqRsTuVwXyZ" style="width: 100%; box-sizing: border-box;">
+              <span style="font-size: 11px; color: var(--text-muted); margin-top: 4px; display: block;">Lo encuentras en la URL de tu carpeta de Drive (el fragmento largo después de /folders/).</span>
+            </div>
+            <div style="display: flex; gap: 12px; margin-top: 8px;">
+              <button type="submit" class="btn btn-primary" id="btn-save-settings-drive" style="flex: 1; justify-content: center;">
+                <i class="fa-solid fa-floppy-disk"></i> Guardar Credenciales
+              </button>
+              <button type="button" class="btn btn-secondary" id="btn-test-settings-drive" style="flex: 1; justify-content: center;">
+                <i class="fa-solid fa-key"></i> Probar Conexión
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </section>
@@ -555,6 +583,195 @@
           <button type="submit" class="btn btn-primary">Programar</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- MODAL: EXPEDIENTE DIGITAL Y ARCHIVOS DE DRIVE -->
+  <div class="modal-overlay" id="modal-case-files">
+    <div class="modal-content" style="width: 700px; max-width: 95vw;">
+      <div class="modal-header">
+        <div>
+          <h3 id="modal-case-files-title" style="font-family: var(--font-title); font-weight: 700; font-size: 20px;">Expediente Digital</h3>
+          <p id="modal-case-files-subtitle" style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Cargando expediente...</p>
+        </div>
+        <button class="modal-close" id="btn-close-case-files-modal">&times;</button>
+      </div>
+
+      <!-- Google Drive Auth Indicator / Login Section -->
+      <div id="drive-auth-warning" style="display: none; background-color: rgba(245, 158, 11, 0.05); border: 1px solid var(--warning); border-radius: var(--radius-md); padding: 20px; margin-bottom: 20px; text-align: center; flex-direction: column; align-items: center; gap: 8px;">
+        <i class="fa-brands fa-google-drive" style="font-size: 32px; color: var(--accent); margin-bottom: 4px;"></i>
+        <h4 style="font-size: 15px; margin-bottom: 2px;">Se requiere iniciar sesión con Google</h4>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; max-width: 320px;">Para poder subir archivos y sincronizar este expediente en tiempo real con Google Drive, debes autorizar el acceso.</p>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-auth-google-modal" style="margin: 0 auto; min-width: 200px; justify-content: center;">
+          <i class="fa-solid fa-arrow-right-to-bracket"></i> Iniciar Sesión con Google
+        </button>
+      </div>
+
+      <!-- Modal Body (when auth is OK) -->
+      <div id="drive-files-body" style="display: flex; flex-direction: column; gap: 16px;">
+        <!-- List of existing files in Google Drive -->
+        <div>
+          <h4 style="font-size: 14px; font-family: var(--font-title); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-folder-open" style="color: var(--primary);"></i> Documentos en Drive</h4>
+          <div id="drive-files-list" style="max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background-color: rgba(15, 23, 42, 0.2);">
+            <!-- Dynamic items or empty state -->
+          </div>
+        </div>
+
+        <!-- Uploader section -->
+        <div>
+          <h4 style="font-size: 14px; font-family: var(--font-title); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-cloud-arrow-up" style="color: var(--success);"></i> Subir nuevo archivo</h4>
+          
+          <!-- Drag & Drop Uploader -->
+          <div class="uploader-box" id="drive-file-uploader" style="padding: 24px;">
+            <i class="fa-solid fa-file-arrow-up" style="font-size: 32px; color: var(--text-muted);"></i>
+            <p>Arrastra archivos aquí o haz clic para buscar</p>
+            <span style="font-size: 11px; color: var(--text-muted);">Formatos admitidos: PDF, PNG, JPG, DOCX, XLSX (Max 15MB)</span>
+            <input type="file" id="input-drive-file" style="display: none;" multiple>
+          </div>
+
+          <!-- File upload progress bar -->
+          <div id="drive-upload-progress-container" style="display: none; margin-top: 16px; background-color: rgba(15, 23, 42, 0.4); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
+              <span id="drive-upload-filename" style="font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80%;">archivo.pdf</span>
+              <span id="drive-upload-percentage" style="font-weight: 600; color: var(--success);">0%</span>
+            </div>
+            <div style="width: 100%; height: 6px; background-color: var(--border-color); border-radius: 3px; overflow: hidden;">
+              <div id="drive-upload-progress-bar" style="width: 0%; height: 100%; background-color: var(--success); transition: width var(--transition-fast);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-close-case-files">Cerrar Expediente</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: FICHA DE RESUMEN DEL CLIENTE -->
+  <div class="modal-overlay" id="modal-client-summary">
+    <div class="modal-content" style="width: 750px; max-width: 95vw;">
+      <div class="modal-header">
+        <div>
+          <h3 id="client-summary-name" style="font-family: var(--font-title); font-weight: 700; font-size: 22px;">Ficha del Cliente</h3>
+          <p id="client-summary-rut" style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">RUT: —</p>
+        </div>
+        <button class="modal-close" id="btn-close-client-summary-modal">&times;</button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        <!-- Ficha Básica Grid -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; background-color: rgba(15, 23, 42, 0.4); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+          <div>
+            <span style="font-size: 11px; color: var(--text-muted); display: block; text-transform: uppercase;">Teléfono</span>
+            <span id="client-summary-phone" style="font-weight: 500; font-size: 14px;">—</span>
+          </div>
+          <div>
+            <span style="font-size: 11px; color: var(--text-muted); display: block; text-transform: uppercase;">Correo Electrónico</span>
+            <span id="client-summary-email" style="font-weight: 500; font-size: 14px; overflow: hidden; text-overflow: ellipsis; display: block; white-space: nowrap;">—</span>
+          </div>
+          <div>
+            <span style="font-size: 11px; color: var(--text-muted); display: block; text-transform: uppercase;">Estado / Registro</span>
+            <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+              <span id="client-summary-status" class="badge">Activo</span>
+              <span id="client-summary-date" style="font-size: 11px; color: var(--text-muted);">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 1: Causas Penales -->
+        <div>
+          <h4 style="font-size: 14px; font-family: var(--font-title); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-briefcase" style="color: var(--primary);"></i> Causas y Juicios Vinculados</h4>
+          <div id="client-summary-cases-list" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Dynamic cases list -->
+          </div>
+        </div>
+
+        <!-- Tab 2: Estado de Pagos y Financiero -->
+        <div>
+          <h4 style="font-size: 14px; font-family: var(--font-title); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-wallet" style="color: var(--accent);"></i> Estado Financiero y Cuotas</h4>
+          <div style="background-color: rgba(15, 23, 42, 0.2); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px;">
+            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px;">
+              <span>Total Contratado: <strong id="client-summary-total-contracted" style="color: var(--text-main);">$0</strong></span>
+              <span>Saldo Pendiente: <strong id="client-summary-total-pending" style="color: var(--accent);">$0</strong></span>
+            </div>
+            <!-- Financial progress bar -->
+            <div style="width: 100%; height: 8px; background-color: var(--border-color); border-radius: 4px; overflow: hidden; margin-bottom: 12px;">
+              <div id="client-summary-payment-progress" style="width: 0%; height: 100%; background-color: var(--success); transition: width var(--transition-fast);"></div>
+            </div>
+            <div id="client-summary-payments-details" style="font-size: 12px; color: var(--text-muted); display: flex; flex-direction: column; gap: 6px;">
+              <!-- Installments overview -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Audiencias e Hitos Procesales -->
+        <div>
+          <h4 style="font-size: 14px; font-family: var(--font-title); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-calendar-days" style="color: var(--error);"></i> Historial de Audiencias y Plazos</h4>
+          <div id="client-summary-reminders-timeline" style="max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background-color: rgba(15, 23, 42, 0.2);">
+            <!-- Dynamic events list -->
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-close-client-summary">Cerrar Ficha</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: FICHA DE RESUMEN DE LA CAUSA -->
+  <div class="modal-overlay" id="modal-case-summary">
+    <div class="modal-content" style="width: 700px; max-width: 95vw;">
+      <div class="modal-header">
+        <div>
+          <h3 id="case-summary-rit" style="font-family: var(--font-title); font-weight: 700; font-size: 22px;">Causa RIT: —</h3>
+          <p id="case-summary-client" style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Cliente: —</p>
+        </div>
+        <button class="modal-close" id="btn-close-case-summary-modal">&times;</button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        <!-- Case Info Grid -->
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; background-color: rgba(15, 23, 42, 0.4); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+          <div>
+            <span style="font-size: 11px; color: var(--text-muted); display: block; text-transform: uppercase;">Tribunal / Fiscalía</span>
+            <span id="case-summary-court" style="font-weight: 500; font-size: 14px;">—</span>
+          </div>
+          <div>
+            <span style="font-size: 11px; color: var(--text-muted); display: block; text-transform: uppercase;">Materia / Delito</span>
+            <span id="case-summary-crime" style="font-weight: 500; font-size: 14px;">—</span>
+          </div>
+          <div>
+            <span style="font-size: 11px; color: var(--text-muted); display: block; text-transform: uppercase;">Estado de la Causa</span>
+            <span id="case-summary-status" class="badge badge-primary" style="margin-top: 2px;">—</span>
+          </div>
+          <div>
+            <span style="font-size: 11px; color: var(--text-muted); display: block; text-transform: uppercase;">Carpeta en Google Drive</span>
+            <div id="case-summary-drive" style="margin-top: 4px;">—</div>
+          </div>
+        </div>
+
+        <!-- Observations / Key details block -->
+        <div>
+          <h4 style="font-size: 14px; font-family: var(--font-title); margin-bottom: 8px;"><i class="fa-solid fa-file-invoice" style="color: var(--primary);"></i> Observaciones y Detalles Clave</h4>
+          <div id="case-summary-details" style="font-size: 13px; line-height: 1.6; color: var(--text-main); background-color: rgba(15, 23, 42, 0.2); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; font-style: italic; white-space: pre-line;">
+            Sin observaciones registradas en esta causa.
+          </div>
+        </div>
+
+        <!-- Chronological timeline of Hearings and legal deadlines -->
+        <div>
+          <h4 style="font-size: 14px; font-family: var(--font-title); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-clock-rotate-left" style="color: var(--error);"></i> Historial de Audiencias y Plazos</h4>
+          <div id="case-summary-reminders" style="max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background-color: rgba(15, 23, 42, 0.2);">
+            <!-- Dynamic events list -->
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-close-case-summary">Cerrar Ficha</button>
+      </div>
     </div>
   </div>
 

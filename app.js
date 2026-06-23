@@ -12,6 +12,16 @@ const State = {
   // Temp state for upload
   selectedUploadInstallment: null, // { paymentId, installmentIndex }
   selectedUploadFile: null, // File object
+  
+  // Google Drive Integration State
+  googleDrive: {
+    clientId: localStorage.getItem('drive_client_id') || '',
+    rootFolderId: localStorage.getItem('drive_root_folder_id') || '',
+    accessToken: null,
+    tokenExpiry: null,
+    tokenClient: null,
+  },
+  currentFilesCaseId: null, // Track which case is open in the files modal
 };
 
 // Initialize DB and load initial data
@@ -34,6 +44,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 5. Setup Search and Backup System
     setupSettingsAndSearch();
+    setupGoogleDriveAPI();
 
     // 6. Initial render of current view
     renderView(State.currentView);
@@ -251,6 +262,7 @@ function renderClientsTable() {
       <td><span class="badge ${statusClass}">${client.estado}</span></td>
       <td>
         <div style="display: flex; gap: 8px;">
+          <button class="btn btn-primary btn-sm view-client-summary-btn" data-id="${client.id}" title="Ficha / Resumen del Cliente"><i class="fa-solid fa-address-card"></i> Ficha</button>
           <button class="btn btn-secondary btn-sm edit-client-btn" data-id="${client.id}" title="Editar"><i class="fa-solid fa-pen"></i></button>
           <button class="btn btn-danger btn-sm delete-client-btn" data-id="${client.id}" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
         </div>
@@ -260,6 +272,13 @@ function renderClientsTable() {
   });
 
   // Attach button triggers
+  document.querySelectorAll('.view-client-summary-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = Number(e.currentTarget.getAttribute('data-id'));
+      openClientSummaryModal(id);
+    });
+  });
+
   document.querySelectorAll('.edit-client-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const id = e.currentTarget.getAttribute('data-id');
@@ -312,6 +331,12 @@ async function deleteClient(id) {
         const receipts = await DB.getByIndex('receipts', 'paymentId', p.id);
         for (const r of receipts) {
           await DB.delete('receipts', r.id);
+        }
+        // Clean related reminders
+        const reminders = await DB.getAll('reminders');
+        const linkedReminders = reminders.filter(r => r.paymentPlanId === p.id);
+        for (const rem of linkedReminders) {
+          await DB.delete('reminders', rem.id);
         }
       }
 
@@ -431,6 +456,9 @@ function renderCasesTable() {
       <td><span class="badge ${statusClass}">${kase.status}</span></td>
       <td>
         <div style="display: flex; gap: 8px;">
+          <button class="btn btn-primary btn-sm view-files-btn" data-id="${kase.id}" title="Expediente Digital"><i class="fa-solid fa-folder-open"></i> Expediente</button>
+          <button class="btn btn-secondary btn-sm view-case-summary-btn" data-id="${kase.id}" title="Ficha / Resumen Causa"><i class="fa-solid fa-circle-info"></i></button>
+          <button class="btn btn-secondary btn-sm add-reminder-case-btn" data-id="${kase.id}" title="Programar Audiencia / Hito"><i class="fa-solid fa-calendar-plus"></i></button>
           <button class="btn btn-secondary btn-sm edit-case-btn" data-id="${kase.id}" title="Editar Causa"><i class="fa-solid fa-pen"></i></button>
           <button class="btn btn-danger btn-sm delete-case-btn" data-id="${kase.id}" title="Eliminar Causa"><i class="fa-solid fa-trash"></i></button>
         </div>
@@ -440,6 +468,27 @@ function renderCasesTable() {
   });
 
   // Attach button triggers
+  document.querySelectorAll('.view-files-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = Number(e.currentTarget.getAttribute('data-id'));
+      openCaseFilesModal(id);
+    });
+  });
+
+  document.querySelectorAll('.view-case-summary-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = Number(e.currentTarget.getAttribute('data-id'));
+      openCaseSummaryModal(id);
+    });
+  });
+
+  document.querySelectorAll('.add-reminder-case-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = Number(e.currentTarget.getAttribute('data-id'));
+      openNewReminderModal('', id);
+    });
+  });
+
   document.querySelectorAll('.edit-case-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const id = e.currentTarget.getAttribute('data-id');
@@ -508,57 +557,117 @@ function setupPaymentsCRUD() {
   document.getElementById('form-payment').addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const clientId = Number(document.getElementById('payment-client-select').value);
-    const montoTotal = Number(document.getElementById('payment-amount').value);
-    const cuotasTotales = Number(document.getElementById('payment-installments').value);
-    const fechaInicioStr = document.getElementById('payment-start-date').value; // YYYY-MM-DD
-    const frecuencia = document.getElementById('payment-frequency').value;
-
-    // Build installment list array
-    const detailCuotas = [];
-    const cuotaMonto = Math.round(montoTotal / cuotasTotales);
-    
-    let baseDate = new Date(fechaInicioStr + 'T12:00:00'); // set mid day to avoid timezone shifts
-
-    for (let i = 1; i <= cuotasTotales; i++) {
-      let dueDate = new Date(baseDate);
-      if (i > 1) {
-        if (frecuencia === 'Mensual') {
-          dueDate.setMonth(baseDate.getMonth() + (i - 1));
-        } else if (frecuencia === 'Quincenal') {
-          dueDate.setDate(baseDate.getDate() + (i - 1) * 14);
-        } else {
-          // Pago único
-          dueDate = baseDate;
-        }
-      }
-      
-      detailCuotas.push({
-        numero: i,
-        monto: cuotaMonto,
-        fechaVencimiento: dueDate.toISOString().split('T')[0], // YYYY-MM-DD
-        estado: 'Pendiente',
-        comprobanteId: null
-      });
-    }
-
-    const paymentPlan = {
-      clientId,
-      montoTotal,
-      cuotasTotales,
-      cuotasPagas: 0,
-      detalleCuotas
-    };
-
     try {
-      await DB.add('payments', paymentPlan);
+      const clientId = Number(document.getElementById('payment-client-select').value);
+      const montoTotal = Number(document.getElementById('payment-amount').value);
+      const cuotasTotales = Number(document.getElementById('payment-installments').value);
+      const fechaInicioStr = document.getElementById('payment-start-date').value; // YYYY-MM-DD or browser locale format
+      const frecuencia = document.getElementById('payment-frequency').value;
+
+      if (!clientId) {
+        alert('Por favor seleccione un cliente de la lista.');
+        return;
+      }
+
+      if (!fechaInicioStr) {
+        alert('Por favor ingrese la fecha del primer vencimiento.');
+        return;
+      }
+
+      // Build installment list array
+      const detalleCuotas = [];
+      const cuotaMonto = Math.round(montoTotal / cuotasTotales);
+      
+      // Robust date parsing to handle YYYY-MM-DD, DD/MM/YYYY, and other browser-dependent variations
+      let baseDate;
+      if (fechaInicioStr.includes('-')) {
+        const parts = fechaInicioStr.split('-');
+        if (parts[0].length === 4) {
+          // YYYY-MM-DD
+          baseDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0);
+        } else {
+          // DD-MM-YYYY
+          baseDate = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]), 12, 0, 0);
+        }
+      } else if (fechaInicioStr.includes('/')) {
+        const parts = fechaInicioStr.split('/');
+        if (parts[0].length === 4) {
+          // YYYY/MM/DD
+          baseDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0);
+        } else {
+          // DD/MM/YYYY
+          baseDate = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]), 12, 0, 0);
+        }
+      } else {
+        baseDate = new Date(fechaInicioStr + 'T12:00:00');
+      }
+
+      if (isNaN(baseDate.getTime())) {
+        alert('La fecha de vencimiento ingresada no es válida.');
+        return;
+      }
+
+      for (let i = 1; i <= cuotasTotales; i++) {
+        let dueDate = new Date(baseDate);
+        if (i > 1) {
+          if (frecuencia === 'Mensual') {
+            dueDate.setMonth(baseDate.getMonth() + (i - 1));
+          } else if (frecuencia === 'Quincenal') {
+            dueDate.setDate(baseDate.getDate() + (i - 1) * 14);
+          } else {
+            // Pago único
+            dueDate = baseDate;
+          }
+        }
+        
+        detalleCuotas.push({
+          numero: i,
+          monto: cuotaMonto,
+          fechaVencimiento: dueDate.toISOString().split('T')[0], // YYYY-MM-DD
+          estado: 'Pendiente',
+          comprobanteId: null
+        });
+      }
+
+      const paymentPlan = {
+        clientId,
+        montoTotal,
+        cuotasTotales,
+        cuotasPagas: 0,
+        detalleCuotas
+      };
+
+      const paymentPlanId = await DB.add('payments', paymentPlan);
+
+      // Create automatic reminders for each installment to show in calendar/dashboard
+      const client = State.activeClients.find(c => c.id === clientId);
+      const clientName = client ? client.nombre : 'Cliente';
+      
+      const clientCase = State.activeCases.find(k => k.clientId === clientId && k.status !== 'Cerrado');
+      const caseId = clientCase ? clientCase.id : null;
+
+      for (const cuota of detalleCuotas) {
+        const reminderItem = {
+          caseId,
+          titulo: `Cobro Cuota #${cuota.numero} - ${clientName}`,
+          fecha: `${cuota.fechaVencimiento}T09:00`,
+          tipo: 'Pago',
+          descripcion: `Vence el pago de la cuota #${cuota.numero} por un monto de $${cuota.monto.toLocaleString('es-CL')}.`,
+          completado: false,
+          isAutomatic: true,
+          paymentPlanId: paymentPlanId,
+          cuotaNumero: cuota.numero
+        };
+        await DB.add('reminders', reminderItem);
+      }
+
       await refreshStateData();
       hideModal(modalId);
       renderPaymentsTable();
       updateDashboardStats();
     } catch (err) {
       console.error(err);
-      alert('Error al registrar el plan de pagos.');
+      alert('Error al registrar el plan de pagos: ' + err.message);
     }
   });
 
@@ -645,7 +754,7 @@ async function deletePaymentPlan(id) {
   const plan = State.activePayments.find(p => p.id === Number(id));
   if (!plan) return;
 
-  const confirmDelete = confirm(`¿Estás seguro de que deseas eliminar este plan de pagos? Se eliminarán todos los comprobantes asociados.`);
+  const confirmDelete = confirm(`¿Estás seguro de que deseas eliminar este plan de pagos? Se eliminarán todos los comprobantes y recordatorios asociados.`);
   if (confirmDelete) {
     try {
       await DB.delete('payments', id);
@@ -653,6 +762,13 @@ async function deletePaymentPlan(id) {
       const receipts = await DB.getByIndex('receipts', 'paymentId', plan.id);
       for (const r of receipts) {
         await DB.delete('receipts', r.id);
+      }
+
+      // Clean up linked reminders
+      const reminders = await DB.getAll('reminders');
+      const linkedReminders = reminders.filter(r => r.paymentPlanId === plan.id);
+      for (const rem of linkedReminders) {
+        await DB.delete('reminders', rem.id);
       }
 
       await refreshStateData();
@@ -786,6 +902,16 @@ async function markInstallmentAsPaid(planId, installmentIdx, receiptId = null) {
     plan.cuotasPagas = plan.detalleCuotas.filter(c => c.estado === 'Pagado').length;
     
     await DB.update('payments', plan);
+
+    // Mark the automatic reminder as completed
+    const cuotaNum = installmentIdx + 1;
+    const reminders = await DB.getAll('reminders');
+    const linkedReminder = reminders.find(r => r.paymentPlanId === planId && r.cuotaNumero === cuotaNum);
+    if (linkedReminder && !linkedReminder.completado) {
+      linkedReminder.completado = true;
+      await DB.update('reminders', linkedReminder);
+    }
+    
     await refreshStateData();
     renderPaymentsTable();
     updateDashboardStats();
@@ -802,6 +928,15 @@ async function undoInstallmentPayment(planId, installmentIdx) {
     plan.cuotasPagas = plan.detalleCuotas.filter(c => c.estado === 'Pagado').length;
 
     await DB.update('payments', plan);
+
+    // Mark the automatic reminder as pending again
+    const cuotaNum = installmentIdx + 1;
+    const reminders = await DB.getAll('reminders');
+    const linkedReminder = reminders.find(r => r.paymentPlanId === planId && r.cuotaNumero === cuotaNum);
+    if (linkedReminder && linkedReminder.completado) {
+      linkedReminder.completado = false;
+      await DB.update('reminders', linkedReminder);
+    }
     
     // Also delete receipt from DB if it existed
     if (oldReceiptId) {
@@ -1039,7 +1174,7 @@ function setupRemindersCRUD() {
   });
 }
 
-function openNewReminderModal(prefilledDate = '') {
+function openNewReminderModal(prefilledDate = '', prefilledCaseId = null) {
   document.getElementById('modal-reminder-title').innerText = 'Programar Fecha Importante';
   document.getElementById('form-reminder').reset();
   document.getElementById('reminder-id-field').value = '';
@@ -1053,6 +1188,9 @@ function openNewReminderModal(prefilledDate = '') {
     const opt = document.createElement('option');
     opt.value = kase.id;
     opt.innerText = `Causa: ${kase.rit} - ${clientName}`;
+    if (prefilledCaseId !== null && kase.id === Number(prefilledCaseId)) {
+      opt.selected = true;
+    }
     select.appendChild(opt);
   });
 
@@ -1334,6 +1472,12 @@ function renderDashboardLists() {
         if (rem) {
           rem.completado = true;
           await DB.update('reminders', rem);
+
+          // If this is an automatic payment reminder, mark the installment as paid
+          if (rem.paymentPlanId && rem.cuotaNumero) {
+            await markInstallmentAsPaid(rem.paymentPlanId, rem.cuotaNumero - 1, null);
+          }
+
           await refreshStateData();
           renderDashboardLists();
           updateDashboardStats();
@@ -1625,4 +1769,834 @@ function formatDate(dateStr) {
   // dateStr is YYYY-MM-DD
   const parts = dateStr.split('-');
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+// ================= GOOGLE DRIVE API INTEGRATION =================
+function setupGoogleDriveAPI() {
+  // Populate form fields with stored values
+  const inputClientId = document.getElementById('settings-drive-client-id');
+  const inputRootFolder = document.getElementById('settings-drive-root-folder');
+  
+  if (inputClientId) inputClientId.value = State.googleDrive.clientId;
+  if (inputRootFolder) inputRootFolder.value = State.googleDrive.rootFolderId;
+
+  // Handle save settings form submit
+  const form = document.getElementById('form-settings-drive');
+  if (form) {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      const clientId = inputClientId.value.trim();
+      const rootFolderId = inputRootFolder.value.trim();
+
+      localStorage.setItem('drive_client_id', clientId);
+      localStorage.setItem('drive_root_folder_id', rootFolderId);
+
+      State.googleDrive.clientId = clientId;
+      State.googleDrive.rootFolderId = rootFolderId;
+      
+      // Reset client instance so it re-initializes with the new ID next time
+      State.googleDrive.tokenClient = null;
+      State.googleDrive.accessToken = null;
+      State.googleDrive.tokenExpiry = null;
+
+      alert('Configuración de Google Drive guardada correctamente.');
+    });
+  }
+
+  // Handle test connection button
+  const testBtn = document.getElementById('btn-test-settings-drive');
+  if (testBtn) {
+    testBtn.addEventListener('click', () => {
+      const clientId = inputClientId.value.trim();
+      if (!clientId) {
+        alert('Por favor ingresa un Client ID para probar la conexión.');
+        return;
+      }
+      
+      // Temporary apply configured clientId for testing
+      State.googleDrive.clientId = clientId;
+      State.googleDrive.tokenClient = null;
+
+      getGoogleAccessToken(() => {
+        alert('¡Conexión verificada con éxito! Has iniciado sesión en Google correctamente.');
+      });
+    });
+  }
+
+  // Setup close events for case files modal
+  const closeFilesBtn1 = document.getElementById('btn-close-case-files-modal');
+  if (closeFilesBtn1) {
+    closeFilesBtn1.addEventListener('click', () => hideModal('modal-case-files'));
+  }
+  const closeFilesBtn2 = document.getElementById('btn-close-case-files');
+  if (closeFilesBtn2) {
+    closeFilesBtn2.addEventListener('click', () => hideModal('modal-case-files'));
+  }
+
+  // Setup close events for client summary modal
+  const closeClientSummaryBtn1 = document.getElementById('btn-close-client-summary-modal');
+  if (closeClientSummaryBtn1) {
+    closeClientSummaryBtn1.addEventListener('click', () => hideModal('modal-client-summary'));
+  }
+  const closeClientSummaryBtn2 = document.getElementById('btn-close-client-summary');
+  if (closeClientSummaryBtn2) {
+    closeClientSummaryBtn2.addEventListener('click', () => hideModal('modal-client-summary'));
+  }
+
+  // Setup close events for case summary modal
+  const closeCaseSummaryBtn1 = document.getElementById('btn-close-case-summary-modal');
+  if (closeCaseSummaryBtn1) {
+    closeCaseSummaryBtn1.addEventListener('click', () => hideModal('modal-case-summary'));
+  }
+  const closeCaseSummaryBtn2 = document.getElementById('btn-close-case-summary');
+  if (closeCaseSummaryBtn2) {
+    closeCaseSummaryBtn2.addEventListener('click', () => hideModal('modal-case-summary'));
+  }
+
+  // Google sign in trigger button inside files modal
+  const btnAuthGoogle = document.getElementById('btn-auth-google-modal');
+  if (btnAuthGoogle) {
+    btnAuthGoogle.addEventListener('click', () => {
+      getGoogleAccessToken(() => {
+        openCaseFilesModal(State.currentFilesCaseId);
+      });
+    });
+  }
+
+  // Initialize Drive file uploader listeners
+  setupDriveFileUploader();
+}
+
+function initTokenClient(callback) {
+  if (!State.googleDrive.clientId) {
+    alert('Por favor configura el Google Client ID en la pestaña de Configuración.');
+    return null;
+  }
+  
+  if (State.googleDrive.tokenClient) {
+    return State.googleDrive.tokenClient;
+  }
+
+  if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+    alert('Las librerías de Google no se han cargado aún. Por favor, asegúrate de tener conexión a Internet y recarga la página.');
+    return null;
+  }
+
+  State.googleDrive.tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: State.googleDrive.clientId,
+    scope: 'https://www.googleapis.com/auth/drive.file',
+    callback: (tokenResponse) => {
+      if (tokenResponse.error) {
+        console.error('Error de autenticación Google:', tokenResponse.error);
+        alert('Error de autenticación con Google: ' + tokenResponse.error);
+        return;
+      }
+      
+      State.googleDrive.accessToken = tokenResponse.access_token;
+      State.googleDrive.tokenExpiry = Date.now() + (tokenResponse.expires_in * 1000);
+      
+      if (callback) callback();
+    }
+  });
+
+  return State.googleDrive.tokenClient;
+}
+
+function getGoogleAccessToken(callback) {
+  // If token is already valid (with 2 min buffer)
+  if (State.googleDrive.accessToken && State.googleDrive.tokenExpiry > (Date.now() + 120000)) {
+    if (callback) callback();
+    return;
+  }
+
+  // Token is missing or expired, request a new one
+  const tokenClient = initTokenClient(callback);
+  if (tokenClient) {
+    tokenClient.requestAccessToken({ prompt: '' });
+  }
+}
+
+async function listDriveFiles(folderId) {
+  const url = `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+trashed=false&fields=files(id,name,mimeType,size,webViewLink,createdTime)&orderBy=name`;
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${State.googleDrive.accessToken}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error ? errorData.error.message : 'Error al listar archivos de Google Drive.');
+  }
+
+  const data = await response.json();
+  return data.files || [];
+}
+
+async function createDriveFolder(name, parentId) {
+  const url = 'https://www.googleapis.com/drive/v3/files';
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${State.googleDrive.accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: name,
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: parentId ? [parentId] : []
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error ? errorData.error.message : 'Error al crear la carpeta en Google Drive.');
+  }
+
+  return await response.json();
+}
+
+async function shareDriveFileOrFolder(fileId) {
+  const url = `https://www.googleapis.com/drive/v3/files/${fileId}/permissions`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${State.googleDrive.accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      role: 'reader',
+      type: 'anyone'
+    })
+  });
+
+  if (!response.ok) {
+    console.warn('No se pudieron establecer los permisos públicos del archivo.');
+  }
+}
+
+function uploadFileToDrive(file, folderId, onProgress) {
+  return new Promise((resolve, reject) => {
+    const url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+    
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('Authorization', `Bearer ${State.googleDrive.accessToken}`);
+    
+    if (onProgress && xhr.upload) {
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          onProgress(percent);
+        }
+      });
+    }
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const response = JSON.parse(xhr.responseText);
+          resolve(response);
+        } catch (e) {
+          reject(e);
+        }
+      } else {
+        try {
+          const errorResponse = JSON.parse(xhr.responseText);
+          reject(new Error(errorResponse.error ? errorResponse.error.message : 'Error desconocido al subir el archivo.'));
+        } catch (e) {
+          reject(new Error(`Error de red HTTP ${xhr.status}`));
+        }
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new Error('Error de red al intentar conectarse a Google Drive.'));
+    };
+
+    const boundary = '-------314159265358979323846';
+    const delimiter = `\r\n--${boundary}\r\n`;
+    const closeDelimiter = `\r\n--${boundary}--`;
+
+    const metadata = {
+      name: file.name,
+      parents: [folderId]
+    };
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const fileContent = e.target.result;
+      
+      const metadataPart = delimiter +
+        'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+        JSON.stringify(metadata) +
+        '\r\n';
+
+      const fileHeader = delimiter +
+        `Content-Type: ${file.type || 'application/octet-stream'}\r\n\r\n`;
+
+      const blob = new Blob([
+        metadataPart,
+        fileHeader,
+        new Uint8Array(fileContent),
+        closeDelimiter
+      ], { type: `multipart/related; boundary=${boundary}` });
+
+      xhr.send(blob);
+    };
+
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+async function deleteDriveFile(fileId) {
+  const url = `https://www.googleapis.com/drive/v3/files/${fileId}`;
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${State.googleDrive.accessToken}`
+    }
+  });
+
+  if (!response.ok && response.status !== 404) {
+    const errorData = await response.json();
+    throw new Error(errorData.error ? errorData.error.message : 'Error al eliminar el archivo de Google Drive.');
+  }
+}
+
+async function openCaseFilesModal(caseId) {
+  State.currentFilesCaseId = caseId;
+  const kase = State.activeCases.find(c => c.id === caseId);
+  if (!kase) return;
+
+  const client = State.activeClients.find(c => c.id === kase.clientId);
+  const clientName = client ? client.nombre : 'Cliente';
+
+  // Set modal header text
+  document.getElementById('modal-case-files-title').innerText = `Expediente RIT: ${kase.rit}`;
+  document.getElementById('modal-case-files-subtitle').innerText = `Cliente: ${clientName} | Tribunal: ${kase.court}`;
+
+  // Check config
+  if (!State.googleDrive.clientId || !State.googleDrive.rootFolderId) {
+    alert('Debes configurar las credenciales de Google Drive (Client ID y Carpeta Raíz) en la pestaña de Configuración.');
+    renderView('settings');
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    document.getElementById('nav-settings-li').classList.add('active');
+    return;
+  }
+
+  // Clear previous upload preview or progress
+  document.getElementById('drive-upload-progress-container').style.display = 'none';
+  document.getElementById('drive-files-list').innerHTML = `
+    <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+      <i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 8px;"></i>
+      <p>Cargando archivos del expediente...</p>
+    </div>
+  `;
+
+  showModal('modal-case-files');
+
+  // Verify auth and proceed to load files
+  getGoogleAccessToken(async () => {
+    try {
+      document.getElementById('drive-auth-warning').style.display = 'none';
+      document.getElementById('drive-files-body').style.display = 'flex';
+      
+      let folderId = '';
+      
+      if (kase.driveLink) {
+        folderId = extractFolderIdFromLink(kase.driveLink);
+      }
+
+      if (!folderId) {
+        document.getElementById('modal-case-files-subtitle').innerText = `Creando carpeta en Google Drive para el expediente...`;
+        
+        const folderName = `${kase.rit} - ${clientName}`;
+        const driveFolder = await createDriveFolder(folderName, State.googleDrive.rootFolderId);
+        folderId = driveFolder.id;
+        
+        // Share folder publicly
+        await shareDriveFileOrFolder(folderId);
+
+        // Update database driveLink field
+        kase.driveLink = `https://drive.google.com/drive/folders/${folderId}`;
+        await DB.update('cases', kase);
+        await refreshStateData();
+        renderCasesTable();
+      }
+
+      document.getElementById('modal-case-files-subtitle').innerText = `Sincronizado con Google Drive`;
+      await refreshDriveFilesList(folderId);
+
+    } catch (err) {
+      console.error(err);
+      if (err.message && (err.message.includes('unauthorized') || err.message.includes('Invalid Credentials') || err.message.includes('401'))) {
+        document.getElementById('drive-auth-warning').style.display = 'flex';
+        document.getElementById('drive-files-body').style.display = 'none';
+      } else {
+        document.getElementById('drive-files-list').innerHTML = `
+          <div class="empty-state">
+            <i class="fa-solid fa-triangle-exclamation" style="color: var(--error);"></i>
+            <h3>Error de sincronización</h3>
+            <p>${err.message || 'No se pudieron recuperar los archivos de Google Drive.'}</p>
+          </div>
+        `;
+      }
+    }
+  });
+}
+
+function extractFolderIdFromLink(link) {
+  if (!link) return '';
+  if (link.startsWith('http://') || link.startsWith('https://')) {
+    const match = link.match(/\/folders\/([a-zA-Z0-9-_]+)/) || link.match(/[?&]id=([a-zA-Z0-9-_]+)/);
+    return match ? match[1] : '';
+  }
+  return link;
+}
+
+async function refreshDriveFilesList(folderId) {
+  const container = document.getElementById('drive-files-list');
+  container.innerHTML = `
+    <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+      <i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 8px;"></i>
+      <p>Consultando Google Drive...</p>
+    </div>
+  `;
+
+  try {
+    const files = await listDriveFiles(folderId);
+    renderDriveFiles(files);
+  } catch (err) {
+    console.error(err);
+    container.innerHTML = `
+      <div class="empty-state">
+        <i class="fa-solid fa-triangle-exclamation" style="color: var(--error);"></i>
+        <h3>Error al listar archivos</h3>
+        <p>${err.message}</p>
+      </div>
+    `;
+  }
+}
+
+function renderDriveFiles(files) {
+  const container = document.getElementById('drive-files-list');
+  container.innerHTML = '';
+
+  if (files.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state" style="padding: 30px 10px;">
+        <i class="fa-solid fa-file-circle-minus" style="font-size: 32px;"></i>
+        <h3 style="font-size: 15px;">Expediente vacío</h3>
+        <p style="font-size: 12px;">No se han subido documentos a esta causa todavía.</p>
+      </div>
+    `;
+    return;
+  }
+
+  files.forEach(file => {
+    const item = document.createElement('div');
+    item.className = 'drive-file-item';
+    
+    let iconClass = 'fa-regular fa-file';
+    let iconColor = 'var(--text-muted)';
+    
+    if (file.mimeType.includes('pdf')) {
+      iconClass = 'fa-regular fa-file-pdf';
+      iconColor = '#ef4444';
+    } else if (file.mimeType.includes('image')) {
+      iconClass = 'fa-regular fa-file-image';
+      iconColor = '#3b82f6';
+    } else if (file.mimeType.includes('word') || file.mimeType.includes('officedocument.wordprocessing')) {
+      iconClass = 'fa-regular fa-file-word';
+      iconColor = '#2563eb';
+    } else if (file.mimeType.includes('excel') || file.mimeType.includes('officedocument.spreadsheetml')) {
+      iconClass = 'fa-regular fa-file-excel';
+      iconColor = '#10b981';
+    }
+
+    let sizeText = '—';
+    if (file.size) {
+      const kbs = Math.round(Number(file.size) / 1024);
+      sizeText = kbs >= 1024 
+        ? `${(kbs / 1024).toFixed(1)} MB`
+        : `${kbs} KB`;
+    }
+
+    const createdDate = file.createdTime 
+      ? new Date(file.createdTime).toLocaleDateString('es-CL') 
+      : '—';
+
+    item.innerHTML = `
+      <div class="drive-file-details">
+        <i class="${iconClass}" style="color: ${iconColor};"></i>
+        <div class="drive-file-info">
+          <h6>${file.name}</h6>
+          <p>${sizeText} &bull; Subido el ${createdDate}</p>
+        </div>
+      </div>
+      <div class="drive-file-actions">
+        <a href="${file.webViewLink}" target="_blank" class="btn btn-secondary btn-sm" title="Abrir en Google Drive" style="padding: 6px 10px; border-radius: var(--radius-sm);">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i>
+        </a>
+        <button class="btn btn-danger btn-sm delete-drive-file-btn" data-id="${file.id}" data-name="${file.name}" title="Eliminar de Drive" style="padding: 6px 10px; border-radius: var(--radius-sm);">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </div>
+    `;
+
+    container.appendChild(item);
+  });
+
+  container.querySelectorAll('.delete-drive-file-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const fileId = e.currentTarget.getAttribute('data-id');
+      const fileName = e.currentTarget.getAttribute('data-name');
+      
+      const confirmDelete = confirm(`¿Estás seguro de que deseas eliminar permanentemente el archivo "${fileName}" de Google Drive?`);
+      if (confirmDelete) {
+        try {
+          e.currentTarget.disabled = true;
+          e.currentTarget.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+          
+          await deleteDriveFile(fileId);
+          
+          const kase = State.activeCases.find(c => c.id === State.currentFilesCaseId);
+          const folderId = extractFolderIdFromLink(kase.driveLink);
+          
+          await refreshDriveFilesList(folderId);
+        } catch (err) {
+          console.error(err);
+          alert('Error al eliminar archivo: ' + err.message);
+          e.currentTarget.disabled = false;
+          e.currentTarget.innerHTML = '<i class="fa-solid fa-trash"></i>';
+        }
+      }
+    });
+  });
+}
+
+function setupDriveFileUploader() {
+  const dropBox = document.getElementById('drive-file-uploader');
+  const fileInput = document.getElementById('input-drive-file');
+  
+  if (!dropBox || !fileInput) return;
+
+  dropBox.addEventListener('click', () => fileInput.click());
+
+  ['dragenter', 'dragover'].forEach(eventName => {
+    dropBox.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      dropBox.classList.add('dragover');
+    }, false);
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    dropBox.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      dropBox.classList.remove('dragover');
+    }, false);
+  });
+
+  dropBox.addEventListener('drop', (e) => {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    if (files.length > 0) {
+      handleDriveFilesUpload(files);
+    }
+  });
+
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+      handleDriveFilesUpload(e.target.files);
+    }
+  });
+}
+
+async function handleDriveFilesUpload(files) {
+  const kase = State.activeCases.find(c => c.id === State.currentFilesCaseId);
+  if (!kase) return;
+
+  const folderId = extractFolderIdFromLink(kase.driveLink);
+  if (!folderId) {
+    alert('Error: Carpeta de Google Drive no establecida para esta causa.');
+    return;
+  }
+
+  const progressContainer = document.getElementById('drive-upload-progress-container');
+  const progressFilename = document.getElementById('drive-upload-filename');
+  const progressPercentage = document.getElementById('drive-upload-percentage');
+  const progressBar = document.getElementById('drive-upload-progress-bar');
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+
+    if (file.size > 15 * 1024 * 1024) {
+      alert(`El archivo "${file.name}" supera el límite de 15 MB y no será subido.`);
+      continue;
+    }
+
+    progressContainer.style.display = 'block';
+    progressFilename.innerText = `Subiendo: ${file.name} (${i + 1}/${files.length})`;
+    progressPercentage.innerText = '0%';
+    progressBar.style.width = '0%';
+
+    try {
+      const uploadedFile = await uploadFileToDrive(file, folderId, (percent) => {
+        progressPercentage.innerText = `${percent}%`;
+        progressBar.style.width = `${percent}%`;
+      });
+
+      await shareDriveFileOrFolder(uploadedFile.id);
+
+    } catch (err) {
+      console.error('Error al subir archivo:', err);
+      alert(`Ocurrió un error al subir el archivo "${file.name}": ${err.message}`);
+    }
+  }
+
+  progressContainer.style.display = 'none';
+  document.getElementById('input-drive-file').value = '';
+
+  await refreshDriveFilesList(folderId);
+}
+
+// ================= SUMMARY PROFILE MODALS (FICHAS) =================
+async function openClientSummaryModal(clientId) {
+  const client = State.activeClients.find(c => c.id === clientId);
+  if (!client) return;
+
+  // Set basic info
+  document.getElementById('client-summary-name').innerText = `Ficha de Cliente: ${client.nombre}`;
+  document.getElementById('client-summary-rut').innerText = `RUT / ID: ${client.rut}`;
+  document.getElementById('client-summary-phone').innerText = client.telefono || '—';
+  document.getElementById('client-summary-email').innerText = client.email || '—';
+  document.getElementById('client-summary-date').innerText = `Ingreso: ${client.fechaRegistro}`;
+  
+  // Set badge status
+  const badge = document.getElementById('client-summary-status');
+  badge.innerText = client.estado;
+  badge.className = 'badge';
+  if (client.estado === 'Activo') badge.classList.add('badge-success');
+  else if (client.estado === 'Suspendido') badge.classList.add('badge-warning');
+  else badge.classList.add('badge-primary');
+
+  // List cases
+  const clientCases = State.activeCases.filter(k => k.clientId === clientId);
+  const casesContainer = document.getElementById('client-summary-cases-list');
+  casesContainer.innerHTML = '';
+  
+  if (clientCases.length === 0) {
+    casesContainer.innerHTML = '<p style="font-size: 13px; color: var(--text-muted); font-style: italic; padding: 10px 0;">No hay causas penales asociadas a este cliente.</p>';
+  } else {
+    clientCases.forEach(kase => {
+      const caseRow = document.createElement('div');
+      caseRow.className = 'drive-file-item'; // reuse nice glass row styling
+      caseRow.style.margin = '4px 0';
+      
+      const driveUI = kase.driveLink 
+        ? `<a href="${kase.driveLink}" target="_blank" class="drive-link-badge"><i class="fa-brands fa-google-drive"></i> Drive</a>`
+        : `<span style="color: var(--text-muted); font-size: 11px;"><i class="fa-solid fa-link-slash"></i> Sin Carpeta</span>`;
+
+      caseRow.innerHTML = `
+        <div style="overflow: hidden;">
+          <span style="font-weight: 600; color: var(--primary); font-size: 14px;">RIT: ${kase.rit}</span>
+          <span style="font-size: 12px; color: var(--text-muted); margin-left: 8px;">${kase.court}</span>
+          <div style="font-size: 12px; color: var(--text-main); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${kase.crime}</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+          <span class="badge ${kase.status === 'Cerrado' ? 'badge-success' : 'badge-primary'}" style="font-size: 10px;">${kase.status}</span>
+          ${driveUI}
+        </div>
+      `;
+      casesContainer.appendChild(caseRow);
+    });
+  }
+
+  // Financial summary
+  const clientPayments = State.activePayments.filter(p => p.clientId === clientId);
+  const progressPercentEl = document.getElementById('client-summary-payment-progress');
+  const detailsContainer = document.getElementById('client-summary-payments-details');
+  
+  let totalContracted = 0;
+  let totalPending = 0;
+  
+  detailsContainer.innerHTML = '';
+  
+  if (clientPayments.length === 0) {
+    document.getElementById('client-summary-total-contracted').innerText = '$0';
+    document.getElementById('client-summary-total-pending').innerText = '$0';
+    progressPercentEl.style.width = '0%';
+    detailsContainer.innerHTML = '<p style="font-style: italic; color: var(--text-muted);">No hay planes de pago registrados para este cliente.</p>';
+  } else {
+    let totalPaid = 0;
+    
+    clientPayments.forEach(plan => {
+      totalContracted += plan.montoTotal;
+      let planPending = 0;
+      
+      plan.detalleCuotas.forEach(cuota => {
+        if (cuota.estado === 'Pendiente') {
+          totalPending += cuota.monto;
+          planPending += cuota.monto;
+        } else {
+          totalPaid += cuota.monto;
+        }
+      });
+
+      const planPaid = plan.montoTotal - planPending;
+      const planPercent = plan.montoTotal > 0 ? Math.round((planPaid / plan.montoTotal) * 100) : 0;
+
+      const planRow = document.createElement('div');
+      planRow.style.display = 'flex';
+      planRow.style.justifyContent = 'space-between';
+      planRow.style.margin = '4px 0';
+      planRow.innerHTML = `
+        <span>Plan ID #${plan.id}: Total $${plan.montoTotal.toLocaleString('es-CL')} (Cuotas: ${plan.cuotasPagas}/${plan.cuotasTotales})</span>
+        <span style="font-weight: 600; color: var(--success);">Pagado: ${planPercent}%</span>
+      `;
+      detailsContainer.appendChild(planRow);
+    });
+
+    document.getElementById('client-summary-total-contracted').innerText = `$${totalContracted.toLocaleString('es-CL')}`;
+    document.getElementById('client-summary-total-pending').innerText = `$${totalPending.toLocaleString('es-CL')}`;
+    
+    const overallPercent = totalContracted > 0 ? Math.round((totalPaid / totalContracted) * 100) : 0;
+    progressPercentEl.style.width = `${overallPercent}%`;
+  }
+
+  // Reminders / Hearings timeline
+  const remindersTimeline = document.getElementById('client-summary-reminders-timeline');
+  remindersTimeline.innerHTML = '';
+  
+  const clientCaseIds = clientCases.map(k => k.id);
+  const clientReminders = State.activeReminders.filter(r => r.caseId !== null && clientCaseIds.includes(r.caseId));
+  
+  if (clientReminders.length === 0) {
+    remindersTimeline.innerHTML = `
+      <div style="text-align: center; padding: 16px; color: var(--text-muted); font-size: 13px;">
+        <i class="fa-solid fa-calendar-check" style="font-size: 20px; margin-bottom: 4px; display: block; color: var(--text-dark);"></i>
+        Sin audiencias ni plazos registrados para este cliente.
+      </div>
+    `;
+  } else {
+    clientReminders.sort((a, b) => b.fecha.localeCompare(a.fecha));
+    
+    clientReminders.forEach(rem => {
+      const item = document.createElement('div');
+      item.style.display = 'flex';
+      item.style.alignItems = 'flex-start';
+      item.style.gap = '10px';
+      item.style.padding = '10px 14px';
+      item.style.backgroundColor = rem.completado ? 'rgba(16, 185, 129, 0.03)' : 'rgba(255, 255, 255, 0.02)';
+      item.style.borderLeft = rem.completado ? '3px solid var(--success)' : '3px solid var(--primary)';
+      item.style.borderRadius = '0 var(--radius-sm) var(--radius-sm) 0';
+      item.style.margin = '4px 0';
+      
+      const relatedCase = State.activeCases.find(c => c.id === rem.caseId);
+      const caseText = relatedCase ? `(RIT: ${relatedCase.rit})` : '';
+
+      const dateText = new Date(rem.fecha).toLocaleString('es-CL', {
+        dateStyle: 'short',
+        timeStyle: 'short'
+      });
+
+      item.innerHTML = `
+        <div style="flex-grow: 1; overflow: hidden;">
+          <h6 style="font-size: 13px; font-weight: 600; text-decoration: ${rem.completado ? 'line-through' : 'none'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${rem.titulo} ${caseText}</h6>
+          <span style="font-size: 11px; color: var(--text-muted);"><i class="fa-regular fa-clock"></i> ${dateText} &bull; ${rem.tipo}</span>
+          ${rem.descripcion ? `<p style="font-size: 11px; font-style: italic; color: var(--text-muted); margin-top: 2px;">"${rem.descripcion}"</p>` : ''}
+        </div>
+        <span class="badge ${rem.completado ? 'badge-success' : 'badge-warning'}" style="font-size: 9px; padding: 2px 6px; flex-shrink: 0; margin-left: 10px;">
+          ${rem.completado ? 'Cumplido' : 'Pendiente'}
+        </span>
+      `;
+      remindersTimeline.appendChild(item);
+    });
+  }
+
+  showModal('modal-client-summary');
+}
+
+async function openCaseSummaryModal(caseId) {
+  const kase = State.activeCases.find(c => c.id === caseId);
+  if (!kase) return;
+
+  const client = State.activeClients.find(c => c.id === kase.clientId);
+  const clientName = client ? client.nombre : 'Cliente Desconocido';
+
+  // Set basic info
+  document.getElementById('case-summary-rit').innerText = `Causa RIT: ${kase.rit}`;
+  document.getElementById('case-summary-client').innerText = `Cliente: ${clientName} (${client ? client.rut : '—'})`;
+  document.getElementById('case-summary-court').innerText = kase.court;
+  document.getElementById('case-summary-crime').innerText = kase.crime;
+  
+  // Set badge status
+  const badge = document.getElementById('case-summary-status');
+  badge.innerText = kase.status;
+  badge.className = 'badge';
+  if (kase.status === 'Cerrado') badge.classList.add('badge-success');
+  else if (kase.status === 'Juicio Oral') badge.classList.add('badge-error');
+  else if (kase.status === 'Apelación') badge.classList.add('badge-warning');
+  else badge.classList.add('badge-primary');
+
+  // Drive link UI
+  const driveContainer = document.getElementById('case-summary-drive');
+  driveContainer.innerHTML = kase.driveLink 
+    ? `<a href="${kase.driveLink}" target="_blank" class="drive-link-badge"><i class="fa-brands fa-google-drive"></i> Ir a Carpeta Drive</a>`
+    : `<span style="color: var(--text-muted); font-size: 13px;"><i class="fa-solid fa-link-slash"></i> Sin carpeta vinculada</span>`;
+
+  // Observations
+  const detailsEl = document.getElementById('case-summary-details');
+  detailsEl.innerText = kase.details ? kase.details : 'Sin observaciones o detalles defensivos registrados.';
+
+  // Reminders Timeline
+  const remindersTimeline = document.getElementById('case-summary-reminders');
+  remindersTimeline.innerHTML = '';
+  
+  const caseReminders = State.activeReminders.filter(r => r.caseId === caseId);
+  
+  if (caseReminders.length === 0) {
+    remindersTimeline.innerHTML = `
+      <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px;">
+        <i class="fa-solid fa-calendar-check" style="font-size: 20px; margin-bottom: 4px; display: block; color: var(--text-dark);"></i>
+        Sin hitos procesales ni audiencias agendadas para esta causa.
+      </div>
+    `;
+  } else {
+    caseReminders.sort((a, b) => b.fecha.localeCompare(a.fecha));
+    
+    caseReminders.forEach(rem => {
+      const item = document.createElement('div');
+      item.style.display = 'flex';
+      item.style.alignItems = 'flex-start';
+      item.style.gap = '10px';
+      item.style.padding = '10px 14px';
+      item.style.backgroundColor = rem.completado ? 'rgba(16, 185, 129, 0.03)' : 'rgba(255, 255, 255, 0.02)';
+      item.style.borderLeft = rem.completado ? '3px solid var(--success)' : '3px solid var(--primary)';
+      item.style.borderRadius = '0 var(--radius-sm) var(--radius-sm) 0';
+      item.style.margin = '4px 0';
+
+      const dateText = new Date(rem.fecha).toLocaleString('es-CL', {
+        dateStyle: 'short',
+        timeStyle: 'short'
+      });
+
+      item.innerHTML = `
+        <div style="flex-grow: 1; overflow: hidden;">
+          <h6 style="font-size: 13px; font-weight: 600; text-decoration: ${rem.completado ? 'line-through' : 'none'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${rem.titulo}</h6>
+          <span style="font-size: 11px; color: var(--text-muted);"><i class="fa-regular fa-clock"></i> ${dateText} &bull; ${rem.tipo}</span>
+          ${rem.descripcion ? `<p style="font-size: 11px; font-style: italic; color: var(--text-muted); margin-top: 2px;">"${rem.descripcion}"</p>` : ''}
+        </div>
+        <span class="badge ${rem.completado ? 'badge-success' : 'badge-warning'}" style="font-size: 9px; padding: 2px 6px; flex-shrink: 0; margin-left: 10px;">
+          ${rem.completado ? 'Cumplido' : 'Pendiente'}
+        </span>
+      `;
+      remindersTimeline.appendChild(item);
+    });
+  }
+
+  showModal('modal-case-summary');
 }
