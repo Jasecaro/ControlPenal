@@ -994,3 +994,71 @@ tr:hover td {
   display: flex;
   gap: 8px;
 }
+
+/* Tabs for Reminder Modal */
+.reminder-tabs {
+  display: flex;
+  background-color: rgba(15, 23, 42, 0.4);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  margin-bottom: 20px;
+}
+
+.reminder-tabs .tab-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.reminder-tabs .tab-btn:hover {
+  color: var(--text-main);
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.reminder-tabs .tab-btn.active {
+  background-color: var(--primary);
+  color: white;
+}
+
+.calculated-preview-box {
+  background-color: rgba(59, 130, 246, 0.05);
+  border: 1px solid var(--border-color-focus);
+  padding: 14px;
+  border-radius: var(--radius-md);
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: fadeIn var(--transition-fast);
+}
+
+.preset-day-btn {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.preset-day-btn:hover {
+  background-color: var(--primary-glow);
+  border-color: var(--primary);
+  color: var(--text-main);
+}
+

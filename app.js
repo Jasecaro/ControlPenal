@@ -1134,18 +1134,126 @@ function setupRemindersCRUD() {
   document.getElementById('btn-close-reminder-modal').addEventListener('click', () => hideModal(modalId));
   document.getElementById('btn-cancel-reminder').addEventListener('click', () => hideModal(modalId));
 
+  // Tab Switch Event Listeners
+  const btnTabStandard = document.getElementById('btn-tab-standard');
+  const btnTabInvestigation = document.getElementById('btn-tab-investigation');
+  const contentStandard = document.getElementById('reminder-tab-content-standard');
+  const contentInvestigation = document.getElementById('reminder-tab-content-investigation');
+  const formReminder = document.getElementById('form-reminder');
+
+  const switchTab = (tab) => {
+    formReminder.setAttribute('data-active-tab', tab);
+    if (tab === 'standard') {
+      btnTabStandard.classList.add('active');
+      btnTabInvestigation.classList.remove('active');
+      contentStandard.style.display = 'block';
+      contentInvestigation.style.display = 'none';
+      document.getElementById('reminder-date').setAttribute('required', 'true');
+      document.getElementById('reminder-title').setAttribute('required', 'true');
+    } else {
+      btnTabStandard.classList.remove('active');
+      btnTabInvestigation.classList.add('active');
+      contentStandard.style.display = 'none';
+      contentInvestigation.style.display = 'block';
+      document.getElementById('reminder-date').removeAttribute('required');
+      document.getElementById('reminder-title').removeAttribute('required');
+      updateInvestigationTargetDate();
+    }
+  };
+
+  btnTabStandard.addEventListener('click', () => switchTab('standard'));
+  btnTabInvestigation.addEventListener('click', () => switchTab('investigation'));
+
+  // Aritmética de cálculo de plazos
+  const baseDateInput = document.getElementById('inv-base-date');
+  const daysInput = document.getElementById('inv-days-input');
+  const targetDateDisplay = document.getElementById('inv-target-date-display');
+
+  const updateInvestigationTargetDate = () => {
+    const baseDateStr = baseDateInput.value;
+    const days = parseInt(daysInput.value) || 0;
+
+    if (!baseDateStr) {
+      targetDateDisplay.innerText = '—';
+      return;
+    }
+
+    const [year, month, day] = baseDateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day, 12, 0, 0);
+    date.setDate(date.getDate() + days);
+
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const formatted = date.toLocaleDateString('es-ES', options);
+    targetDateDisplay.innerText = formatted.charAt(0).toUpperCase() + formatted.slice(1);
+    targetDateDisplay.dataset.calculatedDate = date.toISOString().split('T')[0];
+  };
+
+  baseDateInput.addEventListener('input', updateInvestigationTargetDate);
+  daysInput.addEventListener('input', updateInvestigationTargetDate);
+
+  // Preset Buttons for Plazos
+  document.querySelectorAll('.preset-day-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const days = e.currentTarget.getAttribute('data-days');
+      daysInput.value = days;
+      updateInvestigationTargetDate();
+    });
+  });
+
   // Form Submit
   document.getElementById('form-reminder').addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    const activeTab = formReminder.getAttribute('data-active-tab') || 'standard';
     const id = document.getElementById('reminder-id-field').value;
-    const caseId = document.getElementById('reminder-case-select').value ? Number(document.getElementById('reminder-case-select').value) : null;
-    const titulo = document.getElementById('reminder-title').value.trim();
-    const fecha = document.getElementById('reminder-date').value; // YYYY-MM-DDTHH:MM
-    const tipo = document.getElementById('reminder-type').value;
-    const descripcion = document.getElementById('reminder-details').value.trim();
+    
+    let reminderData = { completado: false };
 
-    const reminderData = { caseId, titulo, fecha, tipo, descripcion, completado: false };
+    if (activeTab === 'standard') {
+      const caseId = document.getElementById('reminder-case-select').value ? Number(document.getElementById('reminder-case-select').value) : null;
+      const titulo = document.getElementById('reminder-title').value.trim();
+      const fecha = document.getElementById('reminder-date').value; // YYYY-MM-DDTHH:MM
+      const tipo = document.getElementById('reminder-type').value;
+      const descripcion = document.getElementById('reminder-details').value.trim();
+      
+      reminderData = { ...reminderData, caseId, titulo, fecha, tipo, descripcion };
+    } else {
+      // Plazo de investigación
+      const caseId = document.getElementById('reminder-case-select-inv').value ? Number(document.getElementById('reminder-case-select-inv').value) : null;
+      if (!caseId) {
+        alert('Por favor, asocie el plazo de investigación a una causa.');
+        return;
+      }
+
+      const baseDateStr = baseDateInput.value;
+      if (!baseDateStr) {
+        alert('Por favor, ingrese la fecha de la audiencia.');
+        return;
+      }
+
+      const days = parseInt(daysInput.value) || 0;
+      if (days <= 0) {
+        alert('Por favor, ingrese una cantidad de días válida.');
+        return;
+      }
+
+      const calculatedDateStr = targetDateDisplay.dataset.calculatedDate;
+      if (!calculatedDateStr) {
+        alert('Error al calcular la fecha de vencimiento.');
+        return;
+      }
+
+      const formattedBaseDate = baseDateStr.split('-').reverse().join('/');
+      
+      reminderData = {
+        ...reminderData,
+        caseId,
+        titulo: 'Vencimiento Plazo Investigación',
+        fecha: `${calculatedDateStr}T09:00`,
+        tipo: 'Plazo Legal',
+        descripcion: `Plazo de investigación fijado en la audiencia del ${formattedBaseDate} por ${days} días corridos.`
+      };
+    }
 
     try {
       if (id) {
@@ -1179,12 +1287,35 @@ function openNewReminderModal(prefilledDate = '', prefilledCaseId = null) {
   document.getElementById('form-reminder').reset();
   document.getElementById('reminder-id-field').value = '';
   
-  // Populate cases selector
+  // Set default tab to standard
+  const formReminder = document.getElementById('form-reminder');
+  formReminder.setAttribute('data-active-tab', 'standard');
+  document.getElementById('btn-tab-standard').classList.add('active');
+  document.getElementById('btn-tab-investigation').classList.remove('active');
+  document.getElementById('reminder-tab-content-standard').style.display = 'block';
+  document.getElementById('reminder-tab-content-investigation').style.display = 'none';
+  document.getElementById('reminder-date').setAttribute('required', 'true');
+  document.getElementById('reminder-title').setAttribute('required', 'true');
+
+  // Set default values for investigation inputs
+  const todayStr = new Date().toISOString().split('T')[0];
+  document.getElementById('inv-base-date').value = todayStr;
+  document.getElementById('inv-days-input').value = '60';
+  document.getElementById('inv-target-date-display').innerText = '—';
+
+  // Populate cases selector (Standard)
   const select = document.getElementById('reminder-case-select');
   select.innerHTML = '<option value="">Ninguno (Hito general sin juicio)</option>';
+  
+  // Populate cases selector (Investigation)
+  const selectInv = document.getElementById('reminder-case-select-inv');
+  selectInv.innerHTML = '<option value="">Seleccione una causa...</option>';
+
   State.activeCases.forEach(kase => {
     const client = State.activeClients.find(c => c.id === kase.clientId);
     const clientName = client ? client.nombre : 'Cliente Desconocido';
+    
+    // Standard option
     const opt = document.createElement('option');
     opt.value = kase.id;
     opt.innerText = `Causa: ${kase.rit} - ${clientName}`;
@@ -1192,6 +1323,15 @@ function openNewReminderModal(prefilledDate = '', prefilledCaseId = null) {
       opt.selected = true;
     }
     select.appendChild(opt);
+
+    // Investigation option
+    const optInv = document.createElement('option');
+    optInv.value = kase.id;
+    optInv.innerText = `Causa: ${kase.rit} - ${clientName}`;
+    if (prefilledCaseId !== null && kase.id === Number(prefilledCaseId)) {
+      optInv.selected = true;
+    }
+    selectInv.appendChild(optInv);
   });
 
   // Prefill Date

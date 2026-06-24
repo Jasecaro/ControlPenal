@@ -547,37 +547,87 @@
         <h3 id="modal-reminder-title">Programar Fecha Importante</h3>
         <button class="modal-close" id="btn-close-reminder-modal">&times;</button>
       </div>
-      <form id="form-reminder">
+      <form id="form-reminder" data-active-tab="standard">
         <input type="hidden" id="reminder-id-field">
-        <div class="form-group">
-          <label for="reminder-case-select">Asociar a Juicio / Causa (Opcional)</label>
-          <select id="reminder-case-select">
-            <option value="">Seleccione una causa...</option>
-          </select>
+        
+        <div class="reminder-tabs" id="reminder-tabs-container">
+          <button type="button" class="tab-btn active" id="btn-tab-standard">
+            <i class="fa-solid fa-calendar-day"></i> Hito Estándar
+          </button>
+          <button type="button" class="tab-btn" id="btn-tab-investigation">
+            <i class="fa-solid fa-scale-balanced"></i> Plazo de Investigación
+          </button>
         </div>
-        <div class="form-group">
-          <label for="reminder-title">Título del Evento / Hito</label>
-          <input type="text" id="reminder-title" required placeholder="Audiencia de Formalización, Plazo Cierre, etc.">
-        </div>
-        <div class="form-row">
+
+        <!-- SECCIÓN: HITO ESTÁNDAR -->
+        <div id="reminder-tab-content-standard">
           <div class="form-group">
-            <label for="reminder-date">Fecha y Hora</label>
-            <input type="datetime-local" id="reminder-date" required>
-          </div>
-          <div class="form-group">
-            <label for="reminder-type">Tipo de Hito</label>
-            <select id="reminder-type">
-              <option value="Audiencia">Audiencia / Juicio</option>
-              <option value="Plazo Legal">Vencimiento Plazo Legal</option>
-              <option value="Reunión">Reunión con Cliente</option>
-              <option value="Pago">Compromiso de Pago</option>
+            <label for="reminder-case-select">Asociar a Juicio / Causa (Opcional)</label>
+            <select id="reminder-case-select">
+              <option value="">Seleccione una causa...</option>
             </select>
           </div>
+          <div class="form-group">
+            <label for="reminder-title">Título del Evento / Hito</label>
+            <input type="text" id="reminder-title" required placeholder="Audiencia de Formalización, Plazo Cierre, etc.">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="reminder-date">Fecha y Hora</label>
+              <input type="datetime-local" id="reminder-date" required>
+            </div>
+            <div class="form-group">
+              <label for="reminder-type">Tipo de Hito</label>
+              <select id="reminder-type">
+                <option value="Audiencia">Audiencia / Juicio</option>
+                <option value="Plazo Legal">Vencimiento Plazo Legal</option>
+                <option value="Reunión">Reunión con Cliente</option>
+                <option value="Pago">Compromiso de Pago</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="reminder-details">Descripción / Observaciones</label>
+            <textarea id="reminder-details" rows="3" placeholder="Información adicional relevante..."></textarea>
+          </div>
         </div>
-        <div class="form-group">
-          <label for="reminder-details">Descripción / Observaciones</label>
-          <textarea id="reminder-details" rows="3" placeholder="Información adicional relevante..."></textarea>
+
+        <!-- SECCIÓN: PLAZO DE INVESTIGACIÓN -->
+        <div id="reminder-tab-content-investigation" style="display: none;">
+          <div class="form-group">
+            <label for="reminder-case-select-inv">Asociar a Juicio / Causa *</label>
+            <select id="reminder-case-select-inv">
+              <option value="">Seleccione una causa...</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="inv-base-date">Fecha de la Audiencia</label>
+              <input type="date" id="inv-base-date">
+            </div>
+            <div class="form-group">
+              <label for="inv-days-input">Días de Plazo (Corridos)</label>
+              <input type="number" id="inv-days-input" min="1" value="60">
+            </div>
+          </div>
+          <div class="form-group">
+            <label style="margin-bottom: 6px;">Plazos sugeridos</label>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-secondary btn-sm preset-day-btn" data-days="30">30 días</button>
+              <button type="button" class="btn btn-secondary btn-sm preset-day-btn" data-days="60">60 días</button>
+              <button type="button" class="btn btn-secondary btn-sm preset-day-btn" data-days="90">90 días</button>
+              <button type="button" class="btn btn-secondary btn-sm preset-day-btn" data-days="120">120 días</button>
+            </div>
+          </div>
+          <div class="calculated-preview-box">
+            <i class="fa-solid fa-calendar-days" style="color: var(--primary); font-size: 16px;"></i>
+            <div>
+              <span style="display: block; font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Fecha de Vencimiento Calculada</span>
+              <strong id="inv-target-date-display" style="font-size: 14px; font-weight: 600; color: var(--success);">—</strong>
+            </div>
+          </div>
         </div>
+
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" id="btn-cancel-reminder">Cancelar</button>
           <button type="submit" class="btn btn-primary">Programar</button>
