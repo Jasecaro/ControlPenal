@@ -773,10 +773,19 @@ function setupCasesCRUD() {
     const court = document.getElementById('case-court').value.trim();
     const crime = document.getElementById('case-crime').value.trim();
     const status = document.getElementById('case-status').value;
-    const driveLink = document.getElementById('case-drive').value.trim();
     const details = document.getElementById('case-details').value.trim();
 
-    const caseData = { clientId, rit, court, crime, status, driveLink, details };
+    const caseData = { clientId, rit, court, crime, status, details };
+
+    // Preserve existing driveLink if editing
+    if (id) {
+      const existingCase = State.activeCases.find(c => c.id === Number(id));
+      if (existingCase) {
+        caseData.driveLink = existingCase.driveLink || '';
+      }
+    } else {
+      caseData.driveLink = '';
+    }
 
     try {
       if (id) {
@@ -910,7 +919,6 @@ function editCase(id) {
     document.getElementById('case-court').value = kase.court;
     document.getElementById('case-crime').value = kase.crime;
     document.getElementById('case-status').value = kase.status;
-    document.getElementById('case-drive').value = kase.driveLink || '';
     document.getElementById('case-details').value = kase.details || '';
     showModal('modal-case');
   }
