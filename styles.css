@@ -1205,4 +1205,181 @@ tr:hover td {
   color: var(--error);
 }
 
+/* ==========================================================================
+   MOBILE RESPONSIVENESS OVERRIDES
+   ========================================================================== */
+
+/* Hamburger menu toggle button style (hidden on desktop) */
+.btn-menu-toggle {
+  display: none;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-main);
+  padding: 10px 14px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-menu-toggle:hover {
+  background-color: var(--primary-glow);
+  border-color: var(--primary);
+}
+
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(7, 10, 19, 0.5);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 98;
+}
+
+.sidebar-overlay.active {
+  display: block;
+}
+
+/* Media Query for Tablets and Mobile devices */
+@media (max-width: 768px) {
+  .btn-menu-toggle {
+    display: inline-flex;
+  }
+
+  aside {
+    left: -260px;
+    transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 999;
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+  }
+
+  aside.active {
+    left: 0;
+  }
+
+  main {
+    margin-left: 0;
+    padding: 24px 16px;
+    max-width: 100vw;
+    gap: 24px;
+  }
+
+  header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .header-controls {
+    width: 100%;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .search-bar {
+    flex-grow: 1;
+  }
+
+  .search-bar input {
+    width: 100%;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  /* Modals sizing for mobile */
+  .modal-content {
+    width: 95vw !important;
+    padding: 20px 16px !important;
+  }
+
+  .modal-header h3 {
+    font-size: 18px;
+  }
+
+  .modal-footer {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .modal-footer .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Compact calendar header and cell padding for mobile */
+  .calendar-header div {
+    font-size: 11px;
+    padding: 6px 2px;
+  }
+
+  .day-cell {
+    min-height: 70px;
+    padding: 4px;
+  }
+
+  .day-number {
+    font-size: 11px;
+  }
+
+  .day-events {
+    gap: 2px;
+  }
+
+  .event-dot {
+    font-size: 9px;
+    padding: 2px 4px;
+  }
+
+  /* Login card sizing for small screens */
+  .login-container-card {
+    width: 90%;
+    padding: 30px 20px;
+  }
+
+  .login-logo h2 {
+    font-size: 20px;
+  }
+
+  .login-logo i {
+    font-size: 36px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn-notifications {
+    align-self: flex-end;
+    margin-top: -46px;
+  }
+}
+
+
 

@@ -477,6 +477,9 @@ function setupNavigation() {
 
         // Switch active view
         renderView(viewName);
+        
+        // Close sidebar on mobile
+        closeSidebarOnMobile();
       });
     }
   });
@@ -488,7 +491,36 @@ function setupNavigation() {
     renderView('dashboard');
     // Scroll to dashboard reminders
     document.getElementById('dashboard-reminders-list').scrollIntoView({ behavior: 'smooth' });
+    
+    // Close sidebar on mobile
+    closeSidebarOnMobile();
   });
+
+  // Mobile sidebar hamburger menu toggle
+  const toggleBtn = document.getElementById('btn-menu-toggle');
+  const sidebar = document.querySelector('aside');
+  const overlay = document.getElementById('sidebar-overlay');
+
+  if (toggleBtn && sidebar && overlay) {
+    toggleBtn.addEventListener('click', () => {
+      sidebar.classList.toggle('active');
+      overlay.classList.toggle('active');
+    });
+
+    overlay.addEventListener('click', () => {
+      sidebar.classList.remove('active');
+      overlay.classList.remove('active');
+    });
+  }
+}
+
+function closeSidebarOnMobile() {
+  const sidebar = document.querySelector('aside');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (sidebar && overlay && window.innerWidth <= 768) {
+    sidebar.classList.remove('active');
+    overlay.classList.remove('active');
+  }
 }
 
 function renderView(viewName) {
