@@ -50,6 +50,7 @@ const State = {
   googleDrive: {
     clientId: localStorage.getItem('drive_client_id') || '665270322245-qt1r4k5218b5hgh9hoevflddt1d9fdmo.apps.googleusercontent.com',
     rootFolderId: localStorage.getItem('drive_root_folder_id') || '1gFe8RTheSVXaAmLHQ17bxPcx8tMq5rTu',
+    webAppUrl: localStorage.getItem('drive_web_app_url') || '',
     accessToken: localStorage.getItem('drive_access_token') || null,
     tokenExpiry: Number(localStorage.getItem('drive_token_expiry')) || null,
     tokenClient: null,
@@ -300,10 +301,10 @@ function setupAuthControls() {
         if (!authInitialized) {
           authInitialized = true;
           await checkLocalDataForMigration();
-          await loadSharedGoogleToken();
+          await loadSharedGoogleConfig();
         } else {
           await refreshStateData();
-          await loadSharedGoogleToken();
+          await loadSharedGoogleConfig();
           renderView(State.currentView);
           updateDashboardStats();
           renderDashboardLists();
@@ -2329,31 +2330,39 @@ function setupGoogleDriveAPI() {
   // Populate form fields with stored values
   const inputClientId = document.getElementById('settings-drive-client-id');
   const inputRootFolder = document.getElementById('settings-drive-root-folder');
+  const inputWebAppUrl = document.getElementById('settings-drive-web-app-url');
   
-  if (inputClientId) inputClientId.value = State.googleDrive.clientId;
-  if (inputRootFolder) inputRootFolder.value = State.googleDrive.rootFolderId;
+  if (inputClientId) inputClientId.value = State.googleDrive.clientId || '';
+  if (inputRootFolder) inputRootFolder.value = State.googleDrive.rootFolderId || '';
+  if (inputWebAppUrl) inputWebAppUrl.value = State.googleDrive.webAppUrl || '';
 
   // Handle save settings form submit
   const form = document.getElementById('form-settings-drive');
   if (form) {
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
       const clientId = inputClientId.value.trim();
       const rootFolderId = inputRootFolder.value.trim();
+      const webAppUrl = inputWebAppUrl ? inputWebAppUrl.value.trim() : '';
 
       localStorage.setItem('drive_client_id', clientId);
       localStorage.setItem('drive_root_folder_id', rootFolderId);
+      localStorage.setItem('drive_web_app_url', webAppUrl);
 
       State.googleDrive.clientId = clientId;
       State.googleDrive.rootFolderId = rootFolderId;
+      State.googleDrive.webAppUrl = webAppUrl;
       
-      // Reset client instance so it re-initializes with the new ID next time
+      // Reset client instance so it re-initializes next time
       State.googleDrive.tokenClient = null;
       State.googleDrive.accessToken = null;
       State.googleDrive.tokenExpiry = null;
       localStorage.removeItem('drive_access_token');
       localStorage.removeItem('drive_token_expiry');
+
+      // Save config to Firestore to share across devices
+      await saveGoogleConfigToFirestore();
 
       alert('Configuración de Google Drive guardada correctamente.');
     });
@@ -2426,41 +2435,58 @@ function setupGoogleDriveAPI() {
 // Global variable to track the active Google Auth callback
 let currentGoogleAuthCallback = null;
 
-async function saveGoogleTokenToFirestore(accessToken, tokenExpiry) {
+async function saveGoogleConfigToFirestore() {
   if (!currentUser || !dbFirestore) return;
   try {
-    const tokenDocRef = doc(dbFirestore, "users", currentUser.uid, "config", "googleDriveToken");
-    await setDoc(tokenDocRef, {
-      accessToken,
-      tokenExpiry,
+    const configDocRef = doc(dbFirestore, "users", currentUser.uid, "config", "googleDriveConfig");
+    await setDoc(configDocRef, {
+      webAppUrl: State.googleDrive.webAppUrl || '',
+      clientId: State.googleDrive.clientId || '',
+      rootFolderId: State.googleDrive.rootFolderId || '',
+      accessToken: State.googleDrive.accessToken || '',
+      tokenExpiry: State.googleDrive.tokenExpiry || 0,
       updatedAt: Date.now()
-    });
+    }, { merge: true });
   } catch (err) {
-    console.error("Error al guardar token de Google en Firestore:", err);
+    console.error("Error al guardar configuración de Google en Firestore:", err);
   }
 }
 
-async function loadGoogleTokenFromFirestore() {
+async function loadGoogleConfigFromFirestore() {
   if (!currentUser || !dbFirestore) return null;
   try {
-    const tokenDocRef = doc(dbFirestore, "users", currentUser.uid, "config", "googleDriveToken");
-    const tokenDocSnap = await getDoc(tokenDocRef);
-    if (tokenDocSnap.exists()) {
-      return tokenDocSnap.data();
+    const configDocRef = doc(dbFirestore, "users", currentUser.uid, "config", "googleDriveConfig");
+    const configSnap = await getDoc(configDocRef);
+    if (configSnap.exists()) {
+      return configSnap.data();
     }
   } catch (err) {
-    console.error("Error al cargar token de Google desde Firestore:", err);
+    console.error("Error al cargar configuración de Google desde Firestore:", err);
   }
   return null;
 }
 
-async function loadSharedGoogleToken() {
-  const data = await loadGoogleTokenFromFirestore();
+async function loadSharedGoogleConfig() {
+  const data = await loadGoogleConfigFromFirestore();
   if (data) {
-    State.googleDrive.accessToken = data.accessToken;
-    State.googleDrive.tokenExpiry = data.tokenExpiry;
-    localStorage.setItem('drive_access_token', data.accessToken);
-    localStorage.setItem('drive_token_expiry', data.tokenExpiry);
+    if (data.webAppUrl) {
+      State.googleDrive.webAppUrl = data.webAppUrl;
+      localStorage.setItem('drive_web_app_url', data.webAppUrl);
+    }
+    if (data.clientId) {
+      State.googleDrive.clientId = data.clientId;
+      localStorage.setItem('drive_client_id', data.clientId);
+    }
+    if (data.rootFolderId) {
+      State.googleDrive.rootFolderId = data.rootFolderId;
+      localStorage.setItem('drive_root_folder_id', data.rootFolderId);
+    }
+    if (data.accessToken) {
+      State.googleDrive.accessToken = data.accessToken;
+      State.googleDrive.tokenExpiry = data.tokenExpiry;
+      localStorage.setItem('drive_access_token', data.accessToken);
+      localStorage.setItem('drive_token_expiry', data.tokenExpiry);
+    }
   }
 }
 
@@ -2496,8 +2522,8 @@ function initTokenClient() {
       localStorage.setItem('drive_access_token', tokenResponse.access_token);
       localStorage.setItem('drive_token_expiry', State.googleDrive.tokenExpiry);
       
-      // Save to Firestore so other computers in the office can use it
-      await saveGoogleTokenToFirestore(tokenResponse.access_token, State.googleDrive.tokenExpiry);
+      // Save config to Firestore to share across devices
+      await saveGoogleConfigToFirestore();
       
       if (currentGoogleAuthCallback) {
         currentGoogleAuthCallback();
@@ -2509,6 +2535,12 @@ function initTokenClient() {
 }
 
 async function getGoogleAccessToken(callback) {
+  // If a Web App URL is configured, we bypass interactive OAuth login entirely
+  if (State.googleDrive.webAppUrl) {
+    if (callback) callback();
+    return;
+  }
+
   // 1. If token is already valid in memory (with 2 min buffer)
   if (State.googleDrive.accessToken && State.googleDrive.tokenExpiry > (Date.now() + 120000)) {
     if (callback) callback();
@@ -2517,7 +2549,7 @@ async function getGoogleAccessToken(callback) {
 
   // 2. Try loading a fresh token from Firestore (in case another computer in the office refreshed it)
   try {
-    const data = await loadGoogleTokenFromFirestore();
+    const data = await loadGoogleConfigFromFirestore();
     if (data && data.tokenExpiry > (Date.now() + 120000)) {
       State.googleDrive.accessToken = data.accessToken;
       State.googleDrive.tokenExpiry = data.tokenExpiry;
@@ -2539,6 +2571,15 @@ async function getGoogleAccessToken(callback) {
 }
 
 async function listDriveFiles(folderId) {
+  if (State.googleDrive.webAppUrl) {
+    const url = `${State.googleDrive.webAppUrl}?action=list&folderId=${folderId}`;
+    const response = await fetch(url, { redirect: 'follow' });
+    if (!response.ok) throw new Error('Error al listar archivos desde Google Apps Script.');
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    return data.files || [];
+  }
+
   const url = `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+trashed=false&fields=files(id,name,mimeType,size,webViewLink,createdTime)&orderBy=name`;
   const response = await fetch(url, {
     headers: {
@@ -2556,6 +2597,15 @@ async function listDriveFiles(folderId) {
 }
 
 async function createDriveFolder(name, parentId) {
+  if (State.googleDrive.webAppUrl) {
+    const url = `${State.googleDrive.webAppUrl}?action=createFolder&name=${encodeURIComponent(name)}&parentId=${parentId}`;
+    const response = await fetch(url, { redirect: 'follow' });
+    if (!response.ok) throw new Error('Error al crear la carpeta en Google Apps Script.');
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    return data; // { id: newFolderId }
+  }
+
   const url = 'https://www.googleapis.com/drive/v3/files';
   const response = await fetch(url, {
     method: 'POST',
@@ -2579,6 +2629,10 @@ async function createDriveFolder(name, parentId) {
 }
 
 async function shareDriveFileOrFolder(fileId) {
+  if (State.googleDrive.webAppUrl) {
+    return; // Already shared automatically by Apps Script
+  }
+
   const url = `https://www.googleapis.com/drive/v3/files/${fileId}/permissions`;
   const response = await fetch(url, {
     method: 'POST',
@@ -2598,6 +2652,40 @@ async function shareDriveFileOrFolder(fileId) {
 }
 
 function uploadFileToDrive(file, folderId, onProgress) {
+  if (State.googleDrive.webAppUrl) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const base64Data = e.target.result.split(',')[1];
+          const response = await fetch(State.googleDrive.webAppUrl, {
+            method: 'POST',
+            redirect: 'follow',
+            headers: {
+              'Content-Type': 'text/plain;charset=utf-8'
+            },
+            body: JSON.stringify({
+              action: 'upload',
+              folderId: folderId,
+              name: file.name,
+              contentType: file.type,
+              base64Data: base64Data
+            })
+          });
+          if (onProgress) onProgress(100);
+          if (!response.ok) throw new Error('Error al subir el archivo al Google Apps Script.');
+          const data = await response.json();
+          if (data.error) throw new Error(data.error);
+          resolve(data); // returns { id: ..., name: ... }
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
   return new Promise((resolve, reject) => {
     const url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
     
@@ -2673,6 +2761,24 @@ function uploadFileToDrive(file, folderId, onProgress) {
 }
 
 async function deleteDriveFile(fileId) {
+  if (State.googleDrive.webAppUrl) {
+    const response = await fetch(State.googleDrive.webAppUrl, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify({
+        action: 'delete',
+        fileId: fileId
+      })
+    });
+    if (!response.ok) throw new Error('Error al eliminar archivo desde Google Apps Script.');
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    return true;
+  }
+
   const url = `https://www.googleapis.com/drive/v3/files/${fileId}`;
   const response = await fetch(url, {
     method: 'DELETE',
