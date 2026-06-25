@@ -1,5 +1,38 @@
 // app.js - Main Application Logic for Control Abogados Penal
 
+// Import Firebase SDKs
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+
+// Firebase Configuration (Reemplaza con tus propias credenciales de Firebase)
+const firebaseConfig = {
+  apiKey: "AIzaSyB0yK2H-jCcpv-qZ_g2MJK0lL_cPwjcoG8",
+  authDomain: "control-penal.firebaseapp.com",
+  projectId: "control-penal",
+  storageBucket: "control-penal.firebasestorage.app",
+  messagingSenderId: "143567007010",
+  appId: "1:143567007010:web:6bb844f6d866f6f4d4c97b"
+};
+
+// Initialize Firebase Variables
+let firebaseApp, auth, dbFirestore, storage;
+let currentUser = null;
+
+try {
+  if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "TU_API_KEY") {
+    firebaseApp = initializeApp(firebaseConfig);
+    auth = getAuth(firebaseApp);
+    dbFirestore = getFirestore(firebaseApp);
+    storage = getStorage(firebaseApp);
+  } else {
+    console.warn("Firebase no ha sido configurado aún. Edita firebaseConfig en app.js.");
+  }
+} catch (error) {
+  console.error("Error al inicializar Firebase:", error);
+}
+
 // State Management
 const State = {
   currentView: 'dashboard',
@@ -24,46 +57,377 @@ const State = {
   currentFilesCaseId: null, // Track which case is open in the files modal
 };
 
+// Redefine window.DB to use Firestore when authenticated
+const LocalDB = window.DB;
+let authInitialized = false;
+
+const FirestoreDB = {
+  async getAll(storeName) {
+    if (!currentUser) return [];
+    const snap = await getDocs(collection(dbFirestore, "users", currentUser.uid, storeName));
+    return snap.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
+  },
+
+  async getById(storeName, id) {
+    if (!currentUser) return null;
+    const docRef = doc(dbFirestore, "users", currentUser.uid, storeName, String(id));
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return { id: isNaN(docSnap.id) ? docSnap.id : Number(docSnap.id), ...docSnap.data() };
+    }
+    return null;
+  },
+
+  async add(storeName, item) {
+    if (!currentUser) throw new Error("No hay usuario autenticado.");
+    const uid = currentUser.uid;
+    if (!item.id) {
+      item.id = Date.now();
+    }
+    const idStr = String(item.id);
+
+    if (storeName === 'receipts' && item.file instanceof Blob) {
+      const storageRef = ref(storage, `users/${uid}/receipts/${item.paymentId}_${item.cuotaNumero}_${item.fileName}`);
+      const uploadSnap = await uploadBytes(storageRef, item.file);
+      const downloadUrl = await getDownloadURL(uploadSnap.ref);
+      item.file = downloadUrl;
+    }
+
+    const docRef = doc(dbFirestore, "users", uid, storeName, idStr);
+    await setDoc(docRef, item);
+    return item.id;
+  },
+
+  async update(storeName, item) {
+    if (!currentUser) throw new Error("No hay usuario autenticado.");
+    const uid = currentUser.uid;
+    const idStr = String(item.id);
+
+    if (storeName === 'receipts' && item.file instanceof Blob) {
+      const storageRef = ref(storage, `users/${uid}/receipts/${item.paymentId}_${item.cuotaNumero}_${item.fileName}`);
+      const uploadSnap = await uploadBytes(storageRef, item.file);
+      const downloadUrl = await getDownloadURL(uploadSnap.ref);
+      item.file = downloadUrl;
+    }
+
+    const docRef = doc(dbFirestore, "users", uid, storeName, idStr);
+    await setDoc(docRef, item, { merge: true });
+    return item.id;
+  },
+
+  async delete(storeName, id) {
+    if (!currentUser) return false;
+    const uid = currentUser.uid;
+    const idStr = String(id);
+
+    if (storeName === 'receipts') {
+      try {
+        const receipt = await this.getById(storeName, id);
+        if (receipt && typeof receipt.file === 'string' && receipt.file.startsWith('http')) {
+          const decodedUrl = decodeURIComponent(receipt.file);
+          const matches = decodedUrl.match(/o\/(users\/.*?)\?/);
+          if (matches && matches[1]) {
+            const fileRef = ref(storage, matches[1]);
+            await deleteObject(fileRef);
+          }
+        }
+      } catch (err) {
+          console.error("Error al eliminar archivo de Storage:", err);
+      }
+    }
+
+    const docRef = doc(dbFirestore, "users", uid, storeName, idStr);
+    await deleteDoc(docRef);
+    return true;
+  },
+
+  async getByIndex(storeName, indexName, queryValue) {
+    if (!currentUser) return [];
+    const uid = currentUser.uid;
+    const q = query(collection(dbFirestore, "users", uid, storeName), where(indexName, "==", queryValue));
+    const snap = await getDocs(q);
+    return snap.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
+  },
+
+  async exportBackup() {
+    const backup = {
+      clients: await this.getAll('clients'),
+      cases: await this.getAll('cases'),
+      payments: await this.getAll('payments'),
+      reminders: await this.getAll('reminders'),
+      receipts: await this.getAll('receipts'),
+      version: 1,
+      exportedAt: new Date().toISOString()
+    };
+    return backup;
+  },
+
+  async importBackup(backupData) {
+    if (!currentUser) return false;
+    const uid = currentUser.uid;
+
+    const restoreStore = async (storeName, items) => {
+      if (!items || !items.length) return;
+      const batch = writeBatch(dbFirestore);
+      for (const item of items) {
+        if (storeName === 'receipts' && typeof item.file === 'string' && item.file.startsWith('data:')) {
+          const blob = base64ToBlob(item.file);
+          const storageRef = ref(storage, `users/${uid}/receipts/${item.paymentId}_${item.cuotaNumero}_${item.fileName}`);
+          const uploadSnap = await uploadBytes(storageRef, blob);
+          const downloadUrl = await getDownloadURL(uploadSnap.ref);
+          item.file = downloadUrl;
+        }
+        const docRef = doc(dbFirestore, "users", uid, storeName, String(item.id));
+        batch.set(docRef, item);
+      }
+      await batch.commit();
+    };
+
+    if (backupData.clients) await restoreStore('clients', backupData.clients);
+    if (backupData.cases) await restoreStore('cases', backupData.cases);
+    if (backupData.payments) await restoreStore('payments', backupData.payments);
+    if (backupData.reminders) await restoreStore('reminders', backupData.reminders);
+    if (backupData.receipts) await restoreStore('receipts', backupData.receipts);
+    return true;
+  }
+};
+
 // Initialize DB and load initial data
 document.addEventListener('DOMContentLoaded', async () => {
   try {
-    // 1. Initialize DB and load data
-    await refreshStateData();
-
-    // 2. Setup Navigation Event Listeners
+    // 1. Setup Navigation Event Listeners
     setupNavigation();
 
-    // 3. Setup CRUD Event Listeners (Clients, Cases, Payments, Reminders)
+    // 2. Setup CRUD Event Listeners (Clients, Cases, Payments, Reminders)
     setupClientsCRUD();
     setupCasesCRUD();
     setupPaymentsCRUD();
     setupRemindersCRUD();
 
-    // 4. Setup File Uploader Event Listeners
+    // 3. Setup File Uploader Event Listeners
     setupFileUploader();
 
-    // 5. Setup Search and Backup System
+    // 4. Setup Search and Backup System
     setupSettingsAndSearch();
     setupGoogleDriveAPI();
 
-    // 6. Initial render of current view
-    renderView(State.currentView);
-    updateDashboardStats();
-    renderDashboardLists();
+    // 5. Setup Firebase Authentication Gate
+    setupAuthControls();
 
-    console.log('Aplicación iniciada exitosamente.');
+    console.log('Eventos de aplicación iniciados exitosamente.');
   } catch (error) {
     console.error('Error al inicializar la aplicación:', error);
-    alert('Ocurrió un error al cargar la base de datos local. Por favor recarga la página.');
   }
 });
 
-// Refresh State data from IndexedDB
+// Refresh State data from the active DB (Firestore when logged in)
 async function refreshStateData() {
   State.activeClients = await DB.getAll('clients');
   State.activeCases = await DB.getAll('cases');
   State.activePayments = await DB.getAll('payments');
   State.activeReminders = await DB.getAll('reminders');
+}
+
+// Authentication and Migration Handlers
+function setupAuthControls() {
+  const loginForm = document.getElementById('login-form');
+  const loginEmailInput = document.getElementById('login-email');
+  const loginPasswordInput = document.getElementById('login-password');
+  const loginErrorMsg = document.getElementById('login-error-msg');
+  const logoutBtn = document.getElementById('btn-logout');
+
+  if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = loginEmailInput.value.trim();
+      const password = loginPasswordInput.value;
+      const submitBtn = document.getElementById('btn-login-submit');
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Iniciando...';
+      loginErrorMsg.style.display = 'none';
+
+      try {
+        if (!auth) {
+          throw new Error("Firebase no está configurado. Por favor edita la variable firebaseConfig en la parte superior de app.js.");
+        }
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (err) {
+        console.error("Login error:", err);
+        loginErrorMsg.textContent = "Error al iniciar sesión: " + (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' ? 'Correo o contraseña incorrectos.' : err.message);
+        loginErrorMsg.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Iniciar Sesión';
+      }
+    });
+  }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+        try {
+          if (auth) {
+            await signOut(auth);
+            window.location.reload();
+          }
+        } catch (err) {
+          console.error("Logout error:", err);
+        }
+      }
+    });
+  }
+
+  if (auth) {
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        currentUser = user;
+        window.DB = FirestoreDB;
+
+        // Update profile in sidebar
+        document.getElementById('sidebar-user-profile').style.display = 'block';
+        document.getElementById('user-display-email').textContent = user.email;
+        
+        const emailPart = user.email.split('@')[0];
+        const initials = emailPart.slice(0, 2).toUpperCase();
+        document.getElementById('user-avatar-initials').textContent = initials;
+
+        // Hide login screen
+        document.getElementById('login-overlay').style.display = 'none';
+
+        // Check if we need to migrate local data
+        if (!authInitialized) {
+          authInitialized = true;
+          await checkLocalDataForMigration();
+        } else {
+          await refreshStateData();
+          renderView(State.currentView);
+          updateDashboardStats();
+          renderDashboardLists();
+        }
+      } else {
+        currentUser = null;
+        window.DB = LocalDB;
+        document.getElementById('sidebar-user-profile').style.display = 'none';
+        document.getElementById('login-overlay').style.display = 'flex';
+        
+        const submitBtn = document.getElementById('btn-login-submit');
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Iniciar Sesión';
+        }
+      }
+    });
+  } else {
+    document.getElementById('login-overlay').style.display = 'flex';
+    loginErrorMsg.innerHTML = '<strong>Error de configuración:</strong><br>El proyecto de Firebase no ha sido configurado en <code>app.js</code>. Edita la variable <code>firebaseConfig</code> al inicio del archivo para activarlo.';
+    loginErrorMsg.style.display = 'block';
+    const submitBtn = document.getElementById('btn-login-submit');
+    if (submitBtn) submitBtn.disabled = true;
+  }
+}
+
+async function checkLocalDataForMigration() {
+  if (!LocalDB) return;
+  try {
+    const clients = await LocalDB.getAll('clients');
+    const cases = await LocalDB.getAll('cases');
+    const payments = await LocalDB.getAll('payments');
+    const reminders = await LocalDB.getAll('reminders');
+    const receipts = await LocalDB.getAll('receipts');
+    
+    const count = clients.length + cases.length + payments.length + reminders.length + receipts.length;
+    if (count > 0) {
+      document.getElementById('migration-count-clients').textContent = clients.length;
+      document.getElementById('migration-count-cases').textContent = cases.length;
+      document.getElementById('migration-count-payments').textContent = payments.length;
+      document.getElementById('migration-count-reminders').textContent = reminders.length;
+      document.getElementById('migration-count-receipts').textContent = receipts.length;
+      
+      showModal('modal-migration');
+      
+      document.getElementById('btn-start-migration').onclick = async () => {
+        document.getElementById('btn-start-migration').disabled = true;
+        document.getElementById('btn-skip-migration').disabled = true;
+        document.getElementById('btn-start-migration').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Migrando...';
+        
+        try {
+          for (const client of clients) {
+            await FirestoreDB.add('clients', client);
+          }
+          for (const kase of cases) {
+            await FirestoreDB.add('cases', kase);
+          }
+          for (const payment of payments) {
+            await FirestoreDB.add('payments', payment);
+          }
+          for (const reminder of reminders) {
+            await FirestoreDB.add('reminders', reminder);
+          }
+          for (const receipt of receipts) {
+            await FirestoreDB.add('receipts', receipt);
+          }
+          
+          await clearLocalIndexedDB();
+          
+          alert('¡Datos migrados exitosamente a la nube!');
+          hideModal('modal-migration');
+          
+          await refreshStateData();
+          renderView(State.currentView);
+          updateDashboardStats();
+          renderDashboardLists();
+        } catch (err) {
+          console.error("Migration error:", err);
+          alert("Error al migrar algunos datos. Por favor inténtalo de nuevo.");
+          document.getElementById('btn-start-migration').disabled = false;
+          document.getElementById('btn-skip-migration').disabled = false;
+          document.getElementById('btn-start-migration').innerHTML = '<i class="fa-solid fa-circle-check"></i> Sí, Migrar datos';
+        }
+      };
+      
+      document.getElementById('btn-skip-migration').onclick = async () => {
+        if (confirm('¿Estás seguro de empezar de cero? Esto borrará tus datos locales para evitar conflictos.')) {
+          await clearLocalIndexedDB();
+          hideModal('modal-migration');
+          
+          await refreshStateData();
+          renderView(State.currentView);
+          updateDashboardStats();
+          renderDashboardLists();
+        }
+      };
+    } else {
+      await refreshStateData();
+      renderView(State.currentView);
+      updateDashboardStats();
+      renderDashboardLists();
+    }
+  } catch (err) {
+    console.error("Error checking local data:", err);
+    await refreshStateData();
+    renderView(State.currentView);
+    updateDashboardStats();
+    renderDashboardLists();
+  }
+}
+
+async function clearLocalIndexedDB() {
+  try {
+    const stores = ['clients', 'cases', 'payments', 'reminders', 'receipts'];
+    for (const storeName of stores) {
+      await new Promise((resolve, reject) => {
+        initDB().then((db) => {
+          const transaction = db.transaction(storeName, 'readwrite');
+          const store = transaction.objectStore(storeName);
+          const req = store.clear();
+          req.onsuccess = () => resolve();
+          req.onerror = () => reject(req.error);
+        }).catch(reject);
+      });
+    }
+  } catch (err) {
+    console.error("Error clearing local IndexedDB:", err);
+  }
 }
 
 // ================= MODAL HELPERS =================
@@ -1095,9 +1459,13 @@ function downloadReceiptFile(receiptId, proposedName) {
       return;
     }
 
-    const url = URL.createObjectURL(receipt.file);
+    const isUrl = typeof receipt.file === 'string';
+    const url = isUrl ? receipt.file : URL.createObjectURL(receipt.file);
     const a = document.createElement('a');
     a.href = url;
+    if (isUrl) {
+      a.target = '_blank';
+    }
     
     // Maintain extension
     const ext = receipt.fileName.split('.').pop();
@@ -1108,7 +1476,7 @@ function downloadReceiptFile(receiptId, proposedName) {
     
     setTimeout(() => {
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      if (!isUrl) URL.revokeObjectURL(url);
     }, 100);
   }).catch(err => {
     console.error(err);

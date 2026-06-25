@@ -14,6 +14,33 @@
 </head>
 <body>
 
+  <!-- Pantalla de Inicio de Sesión (Login Overlay) -->
+  <div id="login-overlay">
+    <div class="login-container-card">
+      <div class="login-logo">
+        <i class="fa-solid fa-scale-balanced"></i>
+        <h2>SEBASTIANI & PUGA</h2>
+        <p>Defensa Penal &bull; Portal de Gestión</p>
+      </div>
+      <form id="login-form">
+        <div class="form-group-login">
+          <label for="login-email">Correo Electrónico</label>
+          <input type="email" id="login-email" required placeholder="tu@correo.com">
+        </div>
+        <div class="form-group-login">
+          <label for="login-password">Contraseña</label>
+          <input type="password" id="login-password" required placeholder="••••••••">
+        </div>
+        <div id="login-error-msg" class="login-error" style="display: none;">
+          Correo o contraseña incorrectos.
+        </div>
+        <button type="submit" class="btn btn-primary" id="btn-login-submit" style="width: 100%; justify-content: center; margin-top: 10px;">
+          <i class="fa-solid fa-arrow-right-to-bracket"></i> Iniciar Sesión
+        </button>
+      </form>
+    </div>
+  </div>
+
   <!-- Sidebar Navigation -->
   <aside>
     <div class="logo-container">
@@ -60,8 +87,21 @@
     </ul>
 
     <div class="sidebar-footer">
-      <div><i class="fa-solid fa-database"></i> Base Local Activa</div>
-      <div style="font-size: 10px; color: var(--text-dark);">v1.0.0 &bull; Local-First</div>
+      <div id="sidebar-user-profile" style="display: none; width: 100%; border-top: 1px solid var(--border-color); padding-top: 12px; margin-top: 12px; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+          <div id="user-avatar-initials" style="width: 32px; height: 32px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-family: var(--font-title); font-size: 13px;">U</div>
+          <div style="min-width: 0; flex-grow: 1;">
+            <p id="user-display-email" style="font-size: 11px; color: var(--text-main); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 2px;">usuario@correo.com</p>
+            <button id="btn-logout" style="background: none; border: none; padding: 0; color: var(--error); font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-family: var(--font-body);">
+              <i class="fa-solid fa-arrow-right-from-bracket"></i> Cerrar Sesión
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="local-status-footer">
+        <div><i class="fa-solid fa-cloud"></i> Sincronizado en la nube</div>
+        <div style="font-size: 10px; color: var(--text-muted);" id="local-db-version">v1.0.0 &bull; Cloud Storage</div>
+      </div>
     </div>
   </aside>
 
@@ -825,8 +865,42 @@
     </div>
   </div>
 
+  <!-- MODAL: ASISTENTE DE MIGRACIÓN A LA NUBE -->
+  <div class="modal-overlay" id="modal-migration" style="z-index: 2000; display: none;">
+    <div class="modal-content" style="width: 450px; max-width: 90vw; text-align: center; padding: 30px;">
+      <i class="fa-solid fa-cloud-arrow-up" style="font-size: 48px; color: var(--primary); margin-bottom: 15px;"></i>
+      <h3 style="font-family: var(--font-title); font-weight: 700; font-size: 22px; margin-bottom: 8px;">¡Migra tus datos a la nube!</h3>
+      <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 20px;">
+        Hemos detectado que tienes información de causas y clientes guardada localmente en este navegador. ¿Deseas subirla a tu nueva cuenta en la nube para sincronizarla en todos tus dispositivos?
+      </p>
+      <div style="background: rgba(59, 130, 246, 0.05); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 15px; margin-bottom: 24px; text-align: left; font-size: 12px; line-height: 1.6; color: var(--text-main);">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 4px;">
+          <span>Clientes encontrados:</span> <strong id="migration-count-clients">0</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 4px;">
+          <span>Causas encontradas:</span> <strong id="migration-count-cases">0</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 4px;">
+          <span>Cuotas/Pagos:</span> <strong id="migration-count-payments">0</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 4px;">
+          <span>Recordatorios:</span> <strong id="migration-count-reminders">0</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span>Comprobantes de pago (Archivos):</span> <strong id="migration-count-receipts">0</strong>
+        </div>
+      </div>
+      <div style="display: flex; gap: 12px; justify-content: center;">
+        <button type="button" class="btn btn-secondary" id="btn-skip-migration" style="flex: 1; justify-content: center;">Empezar de cero</button>
+        <button type="button" class="btn btn-primary" id="btn-start-migration" style="flex: 1; justify-content: center;">
+          <i class="fa-solid fa-circle-check"></i> Sí, Migrar datos
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Main JavaScript Logic -->
   <script src="db.js"></script>
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
