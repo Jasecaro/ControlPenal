@@ -48,8 +48,8 @@ const State = {
   
   // Google Drive Integration State
   googleDrive: {
-    clientId: localStorage.getItem('drive_client_id') || '',
-    rootFolderId: localStorage.getItem('drive_root_folder_id') || '',
+    clientId: localStorage.getItem('drive_client_id') || '665270322245-qt1r4k5218b5hgh9hoevflddt1d9fdmo.apps.googleusercontent.com',
+    rootFolderId: localStorage.getItem('drive_root_folder_id') || '1gFe8RTheSVXaAmLHQ17bxPcx8tMq5rTu',
     accessToken: null,
     tokenExpiry: null,
     tokenClient: null,
@@ -59,6 +59,7 @@ const State = {
 
 // Redefine window.DB to use Firestore when authenticated
 const LocalDB = window.DB;
+let DB = LocalDB;
 let authInitialized = false;
 
 const FirestoreDB = {
@@ -281,6 +282,7 @@ function setupAuthControls() {
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         currentUser = user;
+        DB = FirestoreDB;
         window.DB = FirestoreDB;
 
         // Update profile in sidebar
@@ -306,6 +308,7 @@ function setupAuthControls() {
         }
       } else {
         currentUser = null;
+        DB = LocalDB;
         window.DB = LocalDB;
         document.getElementById('sidebar-user-profile').style.display = 'none';
         document.getElementById('login-overlay').style.display = 'flex';

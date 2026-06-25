@@ -261,3 +261,7 @@ function base64ToBlob(base64DataUrl) {
   }
   return new Blob([uInt8Array], { type: contentType });
 }
+
+// Expose DB globally
+window.DB = DB;
+
