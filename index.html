@@ -458,14 +458,22 @@
             <input type="text" id="case-crime" required placeholder="Hurto simple, Tráfico, Homicidio">
           </div>
           <div class="form-group">
-            <label for="case-status">Estado Causa</label>
-            <select id="case-status">
-              <option value="Investigación">Investigación</option>
-              <option value="Juicio Oral">Juicio Oral</option>
-              <option value="Apelación">Apelación</option>
-              <option value="Cerrado">Cerrado</option>
+            <label for="case-procedure">Procedimiento</label>
+            <select id="case-procedure">
+              <option value="ordinario">Procedimiento Ordinario</option>
+              <option value="simplificado">Procedimiento Simplificado</option>
+              <option value="otro">Ninguno / Otro</option>
             </select>
           </div>
+        </div>
+        <div class="form-group">
+          <label for="case-status">Estado Causa</label>
+          <select id="case-status">
+            <option value="Investigación">Investigación</option>
+            <option value="Juicio Oral">Juicio Oral</option>
+            <option value="Apelación">Apelación</option>
+            <option value="Cerrado">Cerrado</option>
+          </select>
         </div>
         <div class="form-group">
           <label for="case-details">Detalles y Observaciones</label>
@@ -617,6 +625,10 @@
           <div class="form-group">
             <label for="reminder-title">Título del Evento / Hito</label>
             <input type="text" id="reminder-title" required placeholder="Audiencia de Formalización, Plazo Cierre, etc.">
+            <div id="reminder-quick-hitos-container" style="display: none; margin-top: 8px;">
+              <span style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 6px;">Selección rápida de hito según procedimiento:</span>
+              <div id="reminder-quick-hitos-list" style="display: flex; gap: 6px; flex-wrap: wrap;"></div>
+            </div>
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -854,6 +866,16 @@
           <h4 style="font-size: 14px; font-family: var(--font-title); margin-bottom: 8px;"><i class="fa-solid fa-file-invoice" style="color: var(--primary);"></i> Observaciones y Detalles Clave</h4>
           <div id="case-summary-details" style="font-size: 13px; line-height: 1.6; color: var(--text-main); background-color: rgba(15, 23, 42, 0.2); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; font-style: italic; white-space: pre-line;">
             Sin observaciones registradas en esta causa.
+          </div>
+        </div>
+
+        <!-- Predefined Procedure Milestones Progress -->
+        <div id="case-summary-procedure-section" style="display: none;">
+          <h4 style="font-size: 14px; font-family: var(--font-title); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-list-check" style="color: var(--success);"></i> Hitos del Procedimiento (<span id="case-summary-procedure-type-label">Ordinario</span>)
+          </h4>
+          <div id="case-summary-procedure-milestones" class="procedure-milestones-list">
+            <!-- Predefined checklist generated dynamically -->
           </div>
         </div>
 

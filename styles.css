@@ -1381,5 +1381,104 @@ tr:hover td {
   }
 }
 
+/* ==========================================================================
+   PROCEDURE MILESTONES & QUICK HITOS STYLES
+   ========================================================================== */
+
+.procedure-milestones-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background-color: rgba(15, 23, 42, 0.2);
+}
+
+.procedure-milestone-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.procedure-milestone-item.completed {
+  border-left: 3.5px solid var(--success);
+  background-color: rgba(16, 185, 129, 0.03);
+}
+
+.procedure-milestone-item.scheduled {
+  border-left: 3.5px solid var(--primary);
+  background-color: rgba(59, 130, 246, 0.03);
+}
+
+.procedure-milestone-item.not-scheduled {
+  border-left: 3.5px solid var(--text-dark);
+  opacity: 0.85;
+}
+
+.procedure-milestone-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-grow: 1;
+  overflow: hidden;
+  margin-right: 12px;
+}
+
+.procedure-milestone-info h5 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.procedure-milestone-info span {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.procedure-milestone-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.quick-hito-btn {
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-body);
+}
+
+.quick-hito-btn:hover {
+  background-color: var(--primary-glow);
+  border-color: var(--primary);
+  color: var(--text-main);
+}
+
+.quick-hito-btn.active {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+  font-weight: 500;
+}
+
+
 
 

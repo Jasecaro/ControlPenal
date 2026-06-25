@@ -58,6 +58,106 @@ const State = {
   currentFilesCaseId: null, // Track which case is open in the files modal
 };
 
+const HITOS_PROCEDIMIENTO = {
+  ordinario: [
+    'Audiencia de Control',
+    'Audiencia de Formalización',
+    'Audiencia de Medidas Cautelares',
+    'Audiencia de Plazo de Investigación',
+    'Presentación Acusación',
+    'Audiencia de Preparación de Juicio Oral',
+    'Audiencia de Salida Alternativa',
+    'Audiencia de Juicio Abreviado',
+    'Audiencia de Juicio Oral',
+    'Audiencia de Lectura de Sentencia',
+    'Recursos'
+  ],
+  simplificado: [
+    'Audiencia Simplificada',
+    'Audiencia de Preparación de Juicio Oral Simplificado',
+    'Audiencia de Juicio Oral Simplificado',
+    'Recursos'
+  ]
+};
+
+function updateReminderQuickHitos() {
+  const caseSelect = document.getElementById('reminder-case-select');
+  if (!caseSelect) return;
+  const caseIdVal = caseSelect.value;
+  const container = document.getElementById('reminder-quick-hitos-container');
+  const listEl = document.getElementById('reminder-quick-hitos-list');
+  const titleInput = document.getElementById('reminder-title');
+  const typeSelect = document.getElementById('reminder-type');
+  
+  if (!caseIdVal) {
+    container.style.display = 'none';
+    return;
+  }
+  
+  const caseId = Number(caseIdVal);
+  const kase = State.activeCases.find(c => c.id === caseId);
+  if (!kase || !kase.procedure || kase.procedure === 'otro') {
+    container.style.display = 'none';
+    return;
+  }
+  
+  const hitos = HITOS_PROCEDIMIENTO[kase.procedure] || [];
+  if (hitos.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+  
+  listEl.innerHTML = '';
+  hitos.forEach(hito => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'quick-hito-btn';
+    btn.innerText = hito;
+    
+    if (titleInput.value.trim() === hito) {
+      btn.classList.add('active');
+    }
+    
+    btn.addEventListener('click', () => {
+      listEl.querySelectorAll('.quick-hito-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      titleInput.value = hito;
+      
+      if (hito.toLowerCase().includes('audiencia')) {
+        typeSelect.value = 'Audiencia';
+      } else if (hito.toLowerCase().includes('recursos') || hito.toLowerCase().includes('acusación')) {
+        typeSelect.value = 'Plazo Legal';
+      }
+    });
+    listEl.appendChild(btn);
+  });
+  
+  container.style.display = 'block';
+}
+
+function editReminderDirectly(reminderId) {
+  const rem = State.activeReminders.find(r => r.id === Number(reminderId));
+  if (!rem) return;
+  
+  openNewReminderModal(rem.fecha.split('T')[0], rem.caseId, rem.titulo);
+  
+  document.getElementById('reminder-id-field').value = rem.id;
+  document.getElementById('reminder-date').value = rem.fecha;
+  document.getElementById('reminder-type').value = rem.tipo;
+  document.getElementById('reminder-details').value = rem.descripcion || '';
+  
+  const formReminder = document.getElementById('form-reminder');
+  formReminder.setAttribute('data-active-tab', 'standard');
+  document.getElementById('btn-tab-standard').classList.add('active');
+  document.getElementById('btn-tab-investigation').classList.remove('active');
+  document.getElementById('reminder-tab-content-standard').style.display = 'block';
+  document.getElementById('reminder-tab-content-investigation').style.display = 'none';
+  document.getElementById('reminder-date').setAttribute('required', 'true');
+  document.getElementById('reminder-title').setAttribute('required', 'true');
+  
+  updateReminderQuickHitos();
+}
+
 // Redefine window.DB to use Firestore when authenticated
 const LocalDB = window.DB;
 let DB = LocalDB;
@@ -779,9 +879,10 @@ function setupCasesCRUD() {
     const court = document.getElementById('case-court').value.trim();
     const crime = document.getElementById('case-crime').value.trim();
     const status = document.getElementById('case-status').value;
+    const procedure = document.getElementById('case-procedure').value;
     const details = document.getElementById('case-details').value.trim();
 
-    const caseData = { clientId, rit, court, crime, status, details };
+    const caseData = { clientId, rit, court, crime, status, procedure, details };
 
     // Preserve existing driveLink if editing
     if (id) {
@@ -862,7 +963,10 @@ function renderCasesTable() {
       <td style="font-family: var(--font-title); font-weight: 500;">${clientName}</td>
       <td style="font-weight: 600; color: var(--primary);">${kase.rit}</td>
       <td style="font-size: 13px;">${kase.court}</td>
-      <td style="font-size: 13px;">${kase.crime}</td>
+      <td style="font-size: 13px;">
+        <div>${kase.crime}</div>
+        <span style="font-size: 11px; color: var(--text-muted); font-weight: 500;">${kase.procedure === 'ordinario' ? 'Proc. Ordinario' : (kase.procedure === 'simplificado' ? 'Proc. Simplificado' : 'Otro Procedimiento')}</span>
+      </td>
       <td>${driveUI}</td>
       <td><span class="badge ${statusClass}">${kase.status}</span></td>
       <td>
@@ -925,6 +1029,7 @@ function editCase(id) {
     document.getElementById('case-court').value = kase.court;
     document.getElementById('case-crime').value = kase.crime;
     document.getElementById('case-status').value = kase.status;
+    document.getElementById('case-procedure').value = kase.procedure || 'otro';
     document.getElementById('case-details').value = kase.details || '';
     showModal('modal-case');
   }
@@ -1694,9 +1799,24 @@ function setupRemindersCRUD() {
       alert('Error al programar el hito/recordatorio.');
     }
   });
+
+  // Listen for case change to update quick hitos
+  document.getElementById('reminder-case-select').addEventListener('change', updateReminderQuickHitos);
+  
+  // Listen for title input to update active states of quick hito buttons
+  document.getElementById('reminder-title').addEventListener('input', () => {
+    const val = document.getElementById('reminder-title').value.trim();
+    document.querySelectorAll('.quick-hito-btn').forEach(btn => {
+      if (btn.innerText === val) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+  });
 }
 
-function openNewReminderModal(prefilledDate = '', prefilledCaseId = null) {
+function openNewReminderModal(prefilledDate = '', prefilledCaseId = null, prefilledTitle = '') {
   document.getElementById('modal-reminder-title').innerText = 'Programar Fecha Importante';
   document.getElementById('form-reminder').reset();
   document.getElementById('reminder-id-field').value = '';
@@ -1748,11 +1868,23 @@ function openNewReminderModal(prefilledDate = '', prefilledCaseId = null) {
     selectInv.appendChild(optInv);
   });
 
+  // Prefill Title
+  if (prefilledTitle) {
+    document.getElementById('reminder-title').value = prefilledTitle;
+    const typeSelect = document.getElementById('reminder-type');
+    if (prefilledTitle.toLowerCase().includes('audiencia')) {
+      typeSelect.value = 'Audiencia';
+    } else if (prefilledTitle.toLowerCase().includes('recurso') || prefilledTitle.toLowerCase().includes('acusación')) {
+      typeSelect.value = 'Plazo Legal';
+    }
+  }
+
   // Prefill Date
   if (prefilledDate) {
     document.getElementById('reminder-date').value = `${prefilledDate}T09:00`;
   }
 
+  updateReminderQuickHitos();
   showModal('modal-reminder');
 }
 
@@ -3278,6 +3410,138 @@ async function openCaseSummaryModal(caseId) {
   // Observations
   const detailsEl = document.getElementById('case-summary-details');
   detailsEl.innerText = kase.details ? kase.details : 'Sin observaciones o detalles defensivos registrados.';
+
+  // Predefined Procedure Milestones Checklist
+  const procedureSection = document.getElementById('case-summary-procedure-section');
+  const procedureMilestonesList = document.getElementById('case-summary-procedure-milestones');
+  const procedureTypeLabel = document.getElementById('case-summary-procedure-type-label');
+  
+  if (kase.procedure && kase.procedure !== 'otro' && HITOS_PROCEDIMIENTO[kase.procedure]) {
+    procedureTypeLabel.innerText = kase.procedure === 'ordinario' ? 'Ordinario' : 'Simplificado';
+    procedureMilestonesList.innerHTML = '';
+    
+    const hitos = HITOS_PROCEDIMIENTO[kase.procedure];
+    const caseReminders = State.activeReminders.filter(r => r.caseId === caseId);
+    
+    hitos.forEach(hito => {
+      // Find if there is a reminder for this case matching this hito name
+      const linkedReminder = caseReminders.find(r => r.titulo.trim().toLowerCase() === hito.toLowerCase());
+      
+      const item = document.createElement('div');
+      item.className = 'procedure-milestone-item';
+      
+      let badgeHTML = '';
+      let actionHTML = '';
+      let infoHTML = '';
+      
+      if (linkedReminder) {
+        // Milestone is scheduled
+        if (linkedReminder.completado) {
+          item.classList.add('completed');
+          badgeHTML = `<span class="badge badge-success" style="font-size: 10px;">Cumplido</span>`;
+        } else {
+          item.classList.add('scheduled');
+          badgeHTML = `<span class="badge badge-primary" style="font-size: 10px;">Programado</span>`;
+        }
+        
+        const dateText = new Date(linkedReminder.fecha).toLocaleString('es-CL', {
+          dateStyle: 'short',
+          timeStyle: 'short'
+        });
+        
+        infoHTML = `
+          <h5>${hito}</h5>
+          <span><i class="fa-regular fa-calendar"></i> ${dateText} &bull; ${linkedReminder.tipo}</span>
+        `;
+        
+        const checkIcon = linkedReminder.completado 
+          ? `<button class="btn btn-secondary btn-sm toggle-milestone-status-btn" data-reminder-id="${linkedReminder.id}" title="Marcar como pendiente" style="color: var(--success); padding: 4px 8px;"><i class="fa-solid fa-circle-check"></i></button>`
+          : `<button class="btn btn-secondary btn-sm toggle-milestone-status-btn" data-reminder-id="${linkedReminder.id}" title="Marcar como cumplido" style="color: var(--text-muted); padding: 4px 8px;"><i class="fa-regular fa-circle"></i></button>`;
+
+        actionHTML = `
+          ${checkIcon}
+          <button class="btn btn-secondary btn-sm edit-milestone-reminder-btn" data-reminder-id="${linkedReminder.id}" title="Editar Hito"><i class="fa-solid fa-pen"></i></button>
+        `;
+      } else {
+        // Milestone is not scheduled
+        item.classList.add('not-scheduled');
+        badgeHTML = `<span class="badge badge-warning" style="font-size: 10px; background-color: rgba(245,158,11,0.05); color: var(--warning);">No agendado</span>`;
+        
+        infoHTML = `
+          <h5 style="color: var(--text-muted);">${hito}</h5>
+          <span>Falta agendar este hito procesal.</span>
+        `;
+        
+        actionHTML = `
+          <button class="btn btn-primary btn-sm schedule-milestone-btn" data-case-id="${kase.id}" data-hito-title="${hito}" style="padding: 4px 8px; font-size: 11px;"><i class="fa-solid fa-calendar-plus"></i> Agendar</button>
+        `;
+      }
+      
+      item.innerHTML = `
+        <div class="procedure-milestone-info">
+          ${infoHTML}
+        </div>
+        <div class="procedure-milestone-actions">
+          ${badgeHTML}
+          ${actionHTML}
+        </div>
+      `;
+      
+      procedureMilestonesList.appendChild(item);
+    });
+    
+    // Attach event listeners for editing scheduled milestone
+    procedureMilestonesList.querySelectorAll('.edit-milestone-reminder-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const reminderId = Number(e.currentTarget.getAttribute('data-reminder-id'));
+        hideModal('modal-case-summary');
+        editReminderDirectly(reminderId);
+      });
+    });
+
+    // Attach event listeners for toggling milestone completion
+    procedureMilestonesList.querySelectorAll('.toggle-milestone-status-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const reminderId = Number(e.currentTarget.getAttribute('data-reminder-id'));
+        const rem = State.activeReminders.find(r => r.id === reminderId);
+        if (rem) {
+          rem.completado = !rem.completado;
+          await DB.update('reminders', rem);
+          
+          if (rem.paymentPlanId && rem.cuotaNumero) {
+            if (rem.completado) {
+              await markInstallmentAsPaid(rem.paymentPlanId, rem.cuotaNumero - 1, null);
+            } else {
+              await undoInstallmentPayment(rem.paymentPlanId, rem.cuotaNumero - 1);
+            }
+          }
+          
+          await refreshStateData();
+          openCaseSummaryModal(caseId);
+          updateDashboardStats();
+          if (State.currentView === 'calendar') {
+            renderCalendar();
+          } else {
+            renderDashboardLists();
+          }
+        }
+      });
+    });
+    
+    // Attach event listeners for scheduling new milestone
+    procedureMilestonesList.querySelectorAll('.schedule-milestone-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const cid = Number(e.currentTarget.getAttribute('data-case-id'));
+        const title = e.currentTarget.getAttribute('data-hito-title');
+        hideModal('modal-case-summary');
+        openNewReminderModal('', cid, title);
+      });
+    });
+    
+    procedureSection.style.display = 'block';
+  } else {
+    procedureSection.style.display = 'none';
+  }
 
   // Reminders Timeline
   const remindersTimeline = document.getElementById('case-summary-reminders');
