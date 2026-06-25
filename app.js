@@ -50,8 +50,8 @@ const State = {
   googleDrive: {
     clientId: localStorage.getItem('drive_client_id') || '665270322245-qt1r4k5218b5hgh9hoevflddt1d9fdmo.apps.googleusercontent.com',
     rootFolderId: localStorage.getItem('drive_root_folder_id') || '1gFe8RTheSVXaAmLHQ17bxPcx8tMq5rTu',
-    accessToken: null,
-    tokenExpiry: null,
+    accessToken: localStorage.getItem('drive_access_token') || null,
+    tokenExpiry: Number(localStorage.getItem('drive_token_expiry')) || null,
     tokenClient: null,
   },
   currentFilesCaseId: null, // Track which case is open in the files modal
@@ -300,8 +300,10 @@ function setupAuthControls() {
         if (!authInitialized) {
           authInitialized = true;
           await checkLocalDataForMigration();
+          await loadSharedGoogleToken();
         } else {
           await refreshStateData();
+          await loadSharedGoogleToken();
           renderView(State.currentView);
           updateDashboardStats();
           renderDashboardLists();
@@ -2350,6 +2352,8 @@ function setupGoogleDriveAPI() {
       State.googleDrive.tokenClient = null;
       State.googleDrive.accessToken = null;
       State.googleDrive.tokenExpiry = null;
+      localStorage.removeItem('drive_access_token');
+      localStorage.removeItem('drive_token_expiry');
 
       alert('Configuración de Google Drive guardada correctamente.');
     });
@@ -2419,7 +2423,48 @@ function setupGoogleDriveAPI() {
   setupDriveFileUploader();
 }
 
-function initTokenClient(callback) {
+// Global variable to track the active Google Auth callback
+let currentGoogleAuthCallback = null;
+
+async function saveGoogleTokenToFirestore(accessToken, tokenExpiry) {
+  if (!currentUser || !dbFirestore) return;
+  try {
+    const tokenDocRef = doc(dbFirestore, "users", currentUser.uid, "config", "googleDriveToken");
+    await setDoc(tokenDocRef, {
+      accessToken,
+      tokenExpiry,
+      updatedAt: Date.now()
+    });
+  } catch (err) {
+    console.error("Error al guardar token de Google en Firestore:", err);
+  }
+}
+
+async function loadGoogleTokenFromFirestore() {
+  if (!currentUser || !dbFirestore) return null;
+  try {
+    const tokenDocRef = doc(dbFirestore, "users", currentUser.uid, "config", "googleDriveToken");
+    const tokenDocSnap = await getDoc(tokenDocRef);
+    if (tokenDocSnap.exists()) {
+      return tokenDocSnap.data();
+    }
+  } catch (err) {
+    console.error("Error al cargar token de Google desde Firestore:", err);
+  }
+  return null;
+}
+
+async function loadSharedGoogleToken() {
+  const data = await loadGoogleTokenFromFirestore();
+  if (data) {
+    State.googleDrive.accessToken = data.accessToken;
+    State.googleDrive.tokenExpiry = data.tokenExpiry;
+    localStorage.setItem('drive_access_token', data.accessToken);
+    localStorage.setItem('drive_token_expiry', data.tokenExpiry);
+  }
+}
+
+function initTokenClient() {
   if (!State.googleDrive.clientId) {
     alert('Por favor configura el Google Client ID en la pestaña de Configuración.');
     return null;
@@ -2437,7 +2482,7 @@ function initTokenClient(callback) {
   State.googleDrive.tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: State.googleDrive.clientId,
     scope: 'https://www.googleapis.com/auth/drive.file',
-    callback: (tokenResponse) => {
+    callback: async (tokenResponse) => {
       if (tokenResponse.error) {
         console.error('Error de autenticación Google:', tokenResponse.error);
         alert('Error de autenticación con Google: ' + tokenResponse.error);
@@ -2447,22 +2492,47 @@ function initTokenClient(callback) {
       State.googleDrive.accessToken = tokenResponse.access_token;
       State.googleDrive.tokenExpiry = Date.now() + (tokenResponse.expires_in * 1000);
       
-      if (callback) callback();
+      // Save to localStorage for immediate reuse
+      localStorage.setItem('drive_access_token', tokenResponse.access_token);
+      localStorage.setItem('drive_token_expiry', State.googleDrive.tokenExpiry);
+      
+      // Save to Firestore so other computers in the office can use it
+      await saveGoogleTokenToFirestore(tokenResponse.access_token, State.googleDrive.tokenExpiry);
+      
+      if (currentGoogleAuthCallback) {
+        currentGoogleAuthCallback();
+      }
     }
   });
 
   return State.googleDrive.tokenClient;
 }
 
-function getGoogleAccessToken(callback) {
-  // If token is already valid (with 2 min buffer)
+async function getGoogleAccessToken(callback) {
+  // 1. If token is already valid in memory (with 2 min buffer)
   if (State.googleDrive.accessToken && State.googleDrive.tokenExpiry > (Date.now() + 120000)) {
     if (callback) callback();
     return;
   }
 
-  // Token is missing or expired, request a new one
-  const tokenClient = initTokenClient(callback);
+  // 2. Try loading a fresh token from Firestore (in case another computer in the office refreshed it)
+  try {
+    const data = await loadGoogleTokenFromFirestore();
+    if (data && data.tokenExpiry > (Date.now() + 120000)) {
+      State.googleDrive.accessToken = data.accessToken;
+      State.googleDrive.tokenExpiry = data.tokenExpiry;
+      localStorage.setItem('drive_access_token', data.accessToken);
+      localStorage.setItem('drive_token_expiry', data.tokenExpiry);
+      if (callback) callback();
+      return;
+    }
+  } catch (err) {
+    console.error("Error al verificar token compartido de Google:", err);
+  }
+
+  // 3. If still not valid, request a new one (interactive prompt)
+  currentGoogleAuthCallback = callback;
+  const tokenClient = initTokenClient();
   if (tokenClient) {
     tokenClient.requestAccessToken({ prompt: '' });
   }
