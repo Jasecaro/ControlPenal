@@ -331,6 +331,90 @@ async function refreshStateData() {
 }
 
 // Authentication and Migration Handlers
+async function applyUserBranding(user) {
+  const loginLogoTitle = document.getElementById('login-logo-title');
+  const loginLogoSubtitle = document.getElementById('login-logo-subtitle');
+  const sidebarLogoTitle = document.getElementById('sidebar-logo-title');
+  const sidebarLogoSubtitle = document.getElementById('sidebar-logo-subtitle');
+
+  let officeName = "SEBASTIANI & PUGA";
+  let specialty = "DEFENSA PENAL";
+  let themeClass = "theme-penal";
+  let tabTitle = "Control Abogados Penal | Bufete Digital";
+
+  if (user) {
+    try {
+      // 1. Intentar obtener el perfil desde Firestore
+      const profileDocRef = doc(dbFirestore, "users", user.uid, "settings", "profile");
+      const profileSnap = await getDoc(profileDocRef);
+      
+      if (profileSnap.exists()) {
+        const profileData = profileSnap.data();
+        officeName = profileData.officeName || officeName;
+        specialty = profileData.specialty || specialty;
+        themeClass = profileData.themeClass || themeClass;
+        tabTitle = `Control ${officeName} | Bufete Digital`;
+      } else {
+        // 2. Si no existe, revisar el correo para auto-provisionamiento
+        const emailLower = user.email.toLowerCase();
+        if (emailLower === "cristian@abogadossanbernardo.cl") {
+          officeName = "CARO & SEBASTIANI";
+          specialty = "DERECHO LABORAL";
+          themeClass = "theme-laboral";
+        } else {
+          officeName = "SEBASTIANI & PUGA";
+          specialty = "DEFENSA PENAL";
+          themeClass = "theme-penal";
+        }
+        tabTitle = `Control ${officeName} | Bufete Digital`;
+
+        // 3. Guardar el perfil inicial automáticamente en Firestore
+        await setDoc(profileDocRef, {
+          officeName: officeName,
+          specialty: specialty,
+          themeClass: themeClass,
+          createdAt: new Date().toISOString()
+        });
+        console.log("Perfil de marca auto-provisionado y guardado en Firestore para:", user.email);
+      }
+    } catch (err) {
+      console.error("Error al cargar la marca del usuario desde Firestore:", err);
+      // Fallback local en caso de error
+      const emailLower = (user.email || "").toLowerCase();
+      if (emailLower === "cristian@abogadossanbernardo.cl") {
+        officeName = "CARO & SEBASTIANI";
+        specialty = "DERECHO LABORAL";
+        themeClass = "theme-laboral";
+      }
+      tabTitle = `Control ${officeName} | Bufete Digital`;
+    }
+  } else {
+    // Valores neutros por defecto cuando se cierra sesión
+    if (loginLogoTitle) loginLogoTitle.textContent = "Portal de Gestión Jurídica";
+    if (loginLogoSubtitle) loginLogoSubtitle.textContent = "Ingrese sus credenciales para acceder";
+    
+    if (sidebarLogoTitle) sidebarLogoTitle.textContent = "SEBASTIANI & PUGA";
+    if (sidebarLogoSubtitle) sidebarLogoSubtitle.textContent = "DEFENSA PENAL";
+    
+    document.body.className = "";
+    document.title = "Control Abogados Penal | Bufete Digital";
+    return;
+  }
+
+  // Actualizar DOM con la marca activa
+  if (sidebarLogoTitle) sidebarLogoTitle.textContent = officeName.toUpperCase();
+  if (sidebarLogoSubtitle) sidebarLogoSubtitle.textContent = specialty.toUpperCase();
+  
+  if (loginLogoTitle) loginLogoTitle.textContent = officeName.toUpperCase();
+  if (loginLogoSubtitle) loginLogoSubtitle.innerHTML = `${specialty} &bull; Portal de Gestión`;
+  
+  document.title = tabTitle;
+
+  // Aplicar clases de tema en el body
+  document.body.classList.remove('theme-penal', 'theme-laboral');
+  document.body.classList.add(themeClass);
+}
+
 function setupAuthControls() {
   const loginForm = document.getElementById('login-form');
   const loginEmailInput = document.getElementById('login-email');
@@ -386,6 +470,9 @@ function setupAuthControls() {
         DB = FirestoreDB;
         window.DB = FirestoreDB;
 
+        // Aplicar marca dinámica del usuario
+        await applyUserBranding(user);
+
         // Update profile in sidebar
         document.getElementById('sidebar-user-profile').style.display = 'block';
         document.getElementById('user-display-email').textContent = user.email;
@@ -413,6 +500,10 @@ function setupAuthControls() {
         currentUser = null;
         DB = LocalDB;
         window.DB = LocalDB;
+
+        // Limpiar marca dinámica al cerrar sesión
+        await applyUserBranding(null);
+
         document.getElementById('sidebar-user-profile').style.display = 'none';
         document.getElementById('login-overlay').style.display = 'flex';
         

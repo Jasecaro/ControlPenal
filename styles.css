@@ -1479,6 +1479,29 @@ tr:hover td {
   font-weight: 500;
 }
 
+/* ================= TEMAS DE MARCA DINÁMICOS ================= */
+body.theme-penal {
+  --primary: #3b82f6;          /* Azul brillante original */
+  --primary-hover: #2563eb;
+  --primary-glow: rgba(59, 130, 246, 0.15);
+  --accent: #f59e0b;           /* Ámbar/Oro */
+  --accent-hover: #d97706;
+  --accent-glow: rgba(245, 158, 11, 0.15);
+}
+
+body.theme-laboral {
+  --primary: #1e40af;          /* Azul cobalto/oscuro */
+  --primary-hover: #1d4ed8;
+  --primary-glow: rgba(30, 64, 175, 0.18);
+  --accent: #0ea5e9;           /* Celeste/Sky Blue */
+  --accent-hover: #0284c7;
+  --accent-glow: rgba(14, 165, 233, 0.15);
+  
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(30, 64, 175, 0.12) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(14, 165, 233, 0.08) 0px, transparent 50%);
+}
+
 
 
 
