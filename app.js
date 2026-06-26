@@ -58,27 +58,53 @@ const State = {
   currentFilesCaseId: null, // Track which case is open in the files modal
 };
 
-const HITOS_PROCEDIMIENTO = {
-  ordinario: [
-    'Audiencia de Control',
-    'Audiencia de Formalización',
-    'Audiencia de Medidas Cautelares',
-    'Audiencia de Plazo de Investigación',
-    'Presentación Acusación',
-    'Audiencia de Preparación de Juicio Oral',
-    'Audiencia de Salida Alternativa',
-    'Audiencia de Juicio Abreviado',
-    'Audiencia de Juicio Oral',
-    'Audiencia de Lectura de Sentencia',
-    'Recursos'
-  ],
-  simplificado: [
-    'Audiencia Simplificada',
-    'Audiencia de Preparación de Juicio Oral Simplificado',
-    'Audiencia de Juicio Oral Simplificado',
-    'Recursos'
-  ]
-};
+function getHitosProcedimiento() {
+  const isLaboral = document.body.classList.contains('theme-laboral');
+  if (isLaboral) {
+    return {
+      ordinario: [
+        'Demanda Laboral',
+        'Notificación de Demanda',
+        'Contestación de Demanda',
+        'Audiencia Preparatoria',
+        'Audiencia de Juicio',
+        'Sentencia Definitiva',
+        'Recurso de Nulidad'
+      ],
+      simplificado: [
+        'Reclamo Administrativo (DT)',
+        'Comparendo de Conciliación',
+        'Demanda Monitoria',
+        'Sentencia Monitoria',
+        'Reclamación / Oposición',
+        'Audiencia Única',
+        'Sentencia Definitiva'
+      ]
+    };
+  } else {
+    return {
+      ordinario: [
+        'Audiencia de Control',
+        'Audiencia de Formalización',
+        'Audiencia de Medidas Cautelares',
+        'Audiencia de Plazo de Investigación',
+        'Presentación Acusación',
+        'Audiencia de Preparación de Juicio Oral',
+        'Audiencia de Salida Alternativa',
+        'Audiencia de Juicio Abreviado',
+        'Audiencia de Juicio Oral',
+        'Audiencia de Lectura de Sentencia',
+        'Recursos'
+      ],
+      simplificado: [
+        'Audiencia Simplificada',
+        'Audiencia de Preparación de Juicio Oral Simplificado',
+        'Audiencia de Juicio Oral Simplificado',
+        'Recursos'
+      ]
+    };
+  }
+}
 
 function updateReminderQuickHitos() {
   const caseSelect = document.getElementById('reminder-case-select');
@@ -101,7 +127,7 @@ function updateReminderQuickHitos() {
     return;
   }
   
-  const hitos = HITOS_PROCEDIMIENTO[kase.procedure] || [];
+  const hitos = getHitosProcedimiento()[kase.procedure] || [];
   if (hitos.length === 0) {
     container.style.display = 'none';
     return;
@@ -557,6 +583,12 @@ async function applyUserBranding(user) {
     
     document.body.className = "";
     document.title = "Control Abogados Penal | Bufete Digital";
+
+    const caseProcedureSelect = document.getElementById('case-procedure');
+    if (caseProcedureSelect && caseProcedureSelect.options.length >= 2) {
+      caseProcedureSelect.options[0].text = 'Procedimiento Ordinario';
+      caseProcedureSelect.options[1].text = 'Procedimiento Simplificado';
+    }
     return;
   }
 
@@ -572,6 +604,18 @@ async function applyUserBranding(user) {
   // Aplicar clases de tema en el body
   document.body.classList.remove('theme-penal', 'theme-laboral');
   document.body.classList.add(themeClass);
+
+  // Actualizar las opciones de tipo de procedimiento en el formulario de nueva causa
+  const caseProcedureSelect = document.getElementById('case-procedure');
+  if (caseProcedureSelect && caseProcedureSelect.options.length >= 2) {
+    if (themeClass === 'theme-laboral') {
+      caseProcedureSelect.options[0].text = 'Procedimiento General';
+      caseProcedureSelect.options[1].text = 'Procedimiento Monitorio';
+    } else {
+      caseProcedureSelect.options[0].text = 'Procedimiento Ordinario';
+      caseProcedureSelect.options[1].text = 'Procedimiento Simplificado';
+    }
+  }
 }
 
 function setupAuthControls() {
@@ -3670,11 +3714,17 @@ async function openCaseSummaryModal(caseId) {
   const procedureMilestonesList = document.getElementById('case-summary-procedure-milestones');
   const procedureTypeLabel = document.getElementById('case-summary-procedure-type-label');
   
-  if (kase.procedure && kase.procedure !== 'otro' && HITOS_PROCEDIMIENTO[kase.procedure]) {
-    procedureTypeLabel.innerText = kase.procedure === 'ordinario' ? 'Ordinario' : 'Simplificado';
+  const hitosMap = getHitosProcedimiento();
+  if (kase.procedure && kase.procedure !== 'otro' && hitosMap[kase.procedure]) {
+    const isLaboral = document.body.classList.contains('theme-laboral');
+    if (isLaboral) {
+      procedureTypeLabel.innerText = kase.procedure === 'ordinario' ? 'General' : 'Monitorio';
+    } else {
+      procedureTypeLabel.innerText = kase.procedure === 'ordinario' ? 'Ordinario' : 'Simplificado';
+    }
     procedureMilestonesList.innerHTML = '';
     
-    const hitos = HITOS_PROCEDIMIENTO[kase.procedure];
+    const hitos = hitosMap[kase.procedure];
     const caseReminders = State.activeReminders.filter(r => r.caseId === caseId);
     
     hitos.forEach(hito => {
