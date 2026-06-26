@@ -2199,9 +2199,9 @@ function renderDashboardLists() {
   const remindersContainer = document.getElementById('dashboard-reminders-list');
   remindersContainer.innerHTML = '';
 
-  // Sort reminders chronologically
+  // Sort reminders chronologically (excluding payment reminders since they are on the right side)
   const activeSortedRem = [...State.activeReminders]
-    .filter(r => !r.completado)
+    .filter(r => !r.completado && r.tipo !== 'Pago' && !r.paymentPlanId)
     .sort((a, b) => a.fecha.localeCompare(b.fecha));
 
   if (activeSortedRem.length === 0) {
