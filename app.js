@@ -351,8 +351,10 @@ async function checkAndSendEmailNotifications() {
     if (rem.emailSent_1weekBefore) continue;
 
     const remDate = new Date(rem.fecha);
-    const timeDiff = remDate.getTime() - today.getTime();
-    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+    const cleanToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const cleanRemDate = new Date(remDate.getFullYear(), remDate.getMonth(), remDate.getDate());
+    const timeDiff = cleanRemDate.getTime() - cleanToday.getTime();
+    const daysDiff = Math.round(timeDiff / (1000 * 3600 * 24));
 
     // Si falta entre 0 y 7 días para el evento, mandar aviso de 1 semana
     if (daysDiff > 0 && daysDiff <= 7) {
@@ -2284,7 +2286,11 @@ function updateDashboardStats() {
   
   const upcomingRem = State.activeReminders.filter(rem => {
     const remDate = new Date(rem.fecha);
-    return remDate >= today && remDate <= nextWeek && !rem.completado;
+    const cleanToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const cleanRemDate = new Date(remDate.getFullYear(), remDate.getMonth(), remDate.getDate());
+    const timeDiff = cleanRemDate.getTime() - cleanToday.getTime();
+    const daysDiff = Math.round(timeDiff / (1000 * 3600 * 24));
+    return daysDiff >= 0 && daysDiff <= 7 && !rem.completado;
   }).length;
   
   document.getElementById('stat-upcoming-reminders').innerText = upcomingRem;
