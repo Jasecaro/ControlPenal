@@ -328,6 +328,163 @@ async function refreshStateData() {
   State.activeCases = await DB.getAll('cases');
   State.activePayments = await DB.getAll('payments');
   State.activeReminders = await DB.getAll('reminders');
+
+  // Ejecutar verificación y envío de correos recordatorios
+  await checkAndSendEmailNotifications();
+}
+
+async function checkAndSendEmailNotifications() {
+  if (!currentUser || !State.googleDrive.webAppUrl) return;
+
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+
+  // Determinar destinatario(s)
+  let toEmail = currentUser.email.trim();
+  if (toEmail.toLowerCase() === "cristian@abogadossanbernardo.cl") {
+    toEmail = "cristian@abogadossanbernardo.cl, info@abogadossanbernardo.cl";
+  }
+
+  // 1. Chequear Recordatorios (Eventos): 1 semana antes (entre 6 y 7 días)
+  for (const rem of State.activeReminders) {
+    if (rem.completado || rem.tipo === 'Pago' || rem.paymentPlanId) continue;
+    if (rem.emailSent_1weekBefore) continue;
+
+    const remDate = new Date(rem.fecha);
+    const timeDiff = remDate.getTime() - today.getTime();
+    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+    // Si falta entre 0 y 7 días para el evento, mandar aviso de 1 semana
+    if (daysDiff > 0 && daysDiff <= 7) {
+      try {
+        const dateText = remDate.toLocaleString('es-CL', { dateStyle: 'medium', timeStyle: 'short' });
+        const relatedCase = rem.caseId ? State.activeCases.find(c => c.id === rem.caseId) : null;
+        const caseLabel = relatedCase ? `RIT: ${relatedCase.rit} - Tribunal: ${relatedCase.court}` : 'Hito General';
+        
+        const subject = `[Control Abogados] Evento en 1 semana: ${rem.titulo}`;
+        const htmlBody = `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <h2 style="color: #2563eb;">Recordatorio de Evento Próximo</h2>
+            <p>Hola,</p>
+            <p>Te recordamos que se aproxima el siguiente evento dentro de una semana:</p>
+            <table style="border-collapse: collapse; width: 100%; margin-top: 15px; margin-bottom: 15px;">
+              <tr style="background-color: #f8fafc;"><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; width: 150px;">Evento:</td><td style="padding: 8px; border: 1px solid #e2e8f0;">${rem.titulo}</td></tr>
+              <tr><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Tipo:</td><td style="padding: 8px; border: 1px solid #e2e8f0;">${rem.tipo}</td></tr>
+              <tr style="background-color: #f8fafc;"><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Fecha y Hora:</td><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: text-main; color: #1e40af; font-weight: bold;">${dateText}</td></tr>
+              <tr><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Relacionado:</td><td style="padding: 8px; border: 1px solid #e2e8f0;">${caseLabel}</td></tr>
+              ${rem.descripcion ? `<tr style="background-color: #f8fafc;"><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Descripción:</td><td style="padding: 8px; border: 1px solid #e2e8f0; font-style: italic;">"${rem.descripcion}"</td></tr>` : ''}
+            </table>
+            <p style="font-size: 0.85em; color: #666; border-top: 1px solid #e2e8f0; padding-top: 10px; margin-top: 20px;">
+              Este es un correo automático enviado a tu casilla personal de gestión de Control Abogados. Por favor no respondas a este correo.
+            </p>
+          </div>
+        `;
+
+        const response = await fetch(State.googleDrive.webAppUrl, {
+          method: 'POST',
+          mode: 'cors',
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8'
+          },
+          body: JSON.stringify({
+            action: 'sendEmail',
+            toEmail: toEmail,
+            subject: subject,
+            htmlBody: htmlBody
+          })
+        });
+
+        // Modificar bandera localmente y en Firestore
+        rem.emailSent_1weekBefore = true;
+        await DB.update('reminders', rem);
+        console.log(`Notificación de 1 semana enviada para evento: ${rem.titulo}`);
+      } catch (err) {
+        console.error("Error al enviar notificación de recordatorio:", err);
+      }
+    }
+  }
+
+  // 2. Chequear Cuotas de Pagos (Avisos de cobro de cuotas vencidas)
+  for (const plan of State.activePayments) {
+    let planUpdated = false;
+    const client = State.activeClients.find(c => c.id === plan.clientId);
+    const clientName = client ? client.nombre : 'Cliente Desconocido';
+
+    for (const cuota of plan.detalleCuotas) {
+      if (cuota.estado !== 'Pendiente') continue;
+
+      const dueDate = new Date(cuota.fechaVencimiento + 'T00:00:00');
+      const cleanToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const timeDiff = cleanToday.getTime() - dueDate.getTime();
+      const daysOverdue = Math.floor(timeDiff / (1000 * 3600 * 24));
+
+      let milestone = null;
+      let flagName = null;
+
+      if (daysOverdue === 1 && !cuota.emailSent_1day) {
+        milestone = "1 día";
+        flagName = "emailSent_1day";
+      } else if (daysOverdue === 3 && !cuota.emailSent_3days) {
+        milestone = "3 días";
+        flagName = "emailSent_3days";
+      } else if (daysOverdue === 7 && !cuota.emailSent_1week) {
+        milestone = "1 semana";
+        flagName = "emailSent_1week";
+      } else if (daysOverdue === 14 && !cuota.emailSent_2weeks) {
+        milestone = "2 semanas";
+        flagName = "emailSent_2weeks";
+      }
+
+      if (milestone && flagName) {
+        try {
+          const subject = `[Control Abogados - Alerta de Cobro] Cuota #${cuota.numero} vencida por ${milestone} - ${clientName}`;
+          const htmlBody = `
+            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+              <h2 style="color: #dc2626;">Alerta de Cobro: Honorario Atrasado</h2>
+              <p>Hola,</p>
+              <p>Te recordamos que la siguiente cuota de honorarios lleva <strong>${milestone} de atraso</strong> sin registrarse como pagada:</p>
+              <table style="border-collapse: collapse; width: 100%; margin-top: 15px; margin-bottom: 15px;">
+                <tr style="background-color: #f8fafc;"><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; width: 150px;">Cliente:</td><td style="padding: 8px; border: 1px solid #e2e8f0;">${clientName}</td></tr>
+                <tr><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Detalle:</td><td style="padding: 8px; border: 1px solid #e2e8f0;">Cuota #${cuota.numero} de Plan de Pago</td></tr>
+                <tr style="background-color: #f8fafc;"><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Monto a Cobrar:</td><td style="padding: 8px; border: 1px solid #e2e8f0; color: #b91c1c; font-weight: bold;">$${cuota.monto.toLocaleString('es-CL')}</td></tr>
+                <tr><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Vencimiento:</td><td style="padding: 8px; border: 1px solid #e2e8f0;">${cuota.fechaVencimiento}</td></tr>
+                <tr style="background-color: #f8fafc;"><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Atraso Actual:</td><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; color: #dc2626;">${daysOverdue} días</td></tr>
+              </table>
+              <p>Por favor recuerda realizar la gestión de cobro con el cliente a la brevedad.</p>
+              <p style="font-size: 0.85em; color: #666; border-top: 1px solid #e2e8f0; padding-top: 10px; margin-top: 20px;">
+                Este es un correo automático enviado a tu casilla personal de gestión de Control Abogados. Por favor no respondas a este correo.
+              </p>
+            </div>
+          `;
+
+          const response = await fetch(State.googleDrive.webAppUrl, {
+            method: 'POST',
+            mode: 'cors',
+            headers: {
+              'Content-Type': 'text/plain;charset=utf-8'
+            },
+            body: JSON.stringify({
+              action: 'sendEmail',
+              toEmail: toEmail,
+              subject: subject,
+              htmlBody: htmlBody
+            })
+          });
+
+          // Marcar la bandera localmente y guardar el plan
+          cuota[flagName] = true;
+          planUpdated = true;
+          console.log(`Notificación de cobro por cuota #${cuota.numero} de ${clientName} enviada (${milestone} atraso)`);
+        } catch (err) {
+          console.error(`Error al enviar notificación de cobro para cuota #${cuota.numero}:`, err);
+        }
+      }
+    }
+
+    if (planUpdated) {
+      await DB.update('payments', plan);
+    }
+  }
 }
 
 // Authentication and Migration Handlers
