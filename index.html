@@ -211,11 +211,21 @@
     <!-- 2. CLIENTS VIEW -->
     <section class="view-panel" id="view-clients">
       <div class="panel-card">
-        <div class="panel-header">
+        <div class="panel-header" style="flex-wrap: wrap; gap: 12px;">
           <h2>Listado de Clientes</h2>
-          <button class="btn btn-primary" id="btn-add-client-modal">
-            <i class="fa-solid fa-user-plus"></i> Registrar Cliente
-          </button>
+          <div style="display: flex; align-items: center; gap: 12px; margin-left: auto;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <label for="filter-clients-status" style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Filtrar:</label>
+              <select id="filter-clients-status" style="padding: 6px 12px; font-size: 13px; font-family: var(--font-body); background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; outline: none;">
+                <option value="active">Clientes Activos</option>
+                <option value="finished">Finalizados / Inactivos</option>
+                <option value="all">Todos los Clientes</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" id="btn-add-client-modal">
+              <i class="fa-solid fa-user-plus"></i> Registrar Cliente
+            </button>
+          </div>
         </div>
         <div class="table-container">
           <table id="table-clients">
@@ -240,11 +250,21 @@
     <!-- 3. CASES VIEW -->
     <section class="view-panel" id="view-cases">
       <div class="panel-card">
-        <div class="panel-header">
-          <h2>Causas Penales</h2>
-          <button class="btn btn-primary" id="btn-add-case-modal">
-            <i class="fa-solid fa-folder-plus"></i> Nueva Causa
-          </button>
+        <div class="panel-header" style="flex-wrap: wrap; gap: 12px;">
+          <h2 id="view-cases-title">Causas Penales</h2>
+          <div style="display: flex; align-items: center; gap: 12px; margin-left: auto;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <label for="filter-cases-status" style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Filtrar:</label>
+              <select id="filter-cases-status" style="padding: 6px 12px; font-size: 13px; font-family: var(--font-body); background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; outline: none;">
+                <option value="active">En Trámite / Activas</option>
+                <option value="closed">Terminadas / Cerradas</option>
+                <option value="all">Todas las Causas</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" id="btn-add-case-modal">
+              <i class="fa-solid fa-folder-plus"></i> Nueva Causa
+            </button>
+          </div>
         </div>
         <div class="table-container">
           <table id="table-cases">
@@ -993,6 +1013,6 @@
 
   <!-- Main JavaScript Logic -->
   <script src="db.js"></script>
-  <script type="module" src="app.js?v=16"></script>
+  <script type="module" src="app.js?v=17"></script>
 </body>
 </html>

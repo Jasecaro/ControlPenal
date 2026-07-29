@@ -1105,19 +1105,33 @@ function renderClientsTable() {
   const tbody = document.getElementById('table-clients-body');
   tbody.innerHTML = '';
 
-  if (State.activeClients.length === 0) {
+  const filterSelect = document.getElementById('filter-clients-status');
+  if (filterSelect && !filterSelect.hasAttribute('data-bound')) {
+    filterSelect.setAttribute('data-bound', 'true');
+    filterSelect.addEventListener('change', () => renderClientsTable());
+  }
+
+  const filterVal = filterSelect ? filterSelect.value : 'active';
+
+  const filteredClients = State.activeClients.filter(client => {
+    if (filterVal === 'active') return client.estado === 'Activo';
+    if (filterVal === 'finished') return client.estado === 'Finalizado' || client.estado === 'Suspendido' || client.estado === 'Inactivo';
+    return true; // 'all'
+  });
+
+  if (filteredClients.length === 0) {
     tbody.innerHTML = `
       <tr>
         <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
           <i class="fa-solid fa-users-slash" style="font-size: 32px; display: block; margin-bottom: 12px; color: var(--text-dark);"></i>
-          No hay clientes registrados aún. Presiona "Registrar Cliente".
+          No hay clientes que coincidan con este filtro.
         </td>
       </tr>
     `;
     return;
   }
 
-  State.activeClients.forEach(client => {
+  filteredClients.forEach(client => {
     const tr = document.createElement('tr');
     
     let statusClass = 'badge-success';
@@ -1344,7 +1358,8 @@ function populateClientSelect(selectId, selectedValue = '') {
   State.activeClients.forEach(client => {
     const opt = document.createElement('option');
     opt.value = client.id;
-    opt.innerText = `${client.nombre} (${client.rut})`;
+    const tag = client.estado !== 'Activo' ? ` (${client.estado})` : '';
+    opt.innerText = `${client.nombre} (${client.rut})${tag}`;
     if (client.id === Number(selectedValue)) {
       opt.selected = true;
     }
@@ -1356,19 +1371,34 @@ function renderCasesTable() {
   const tbody = document.getElementById('table-cases-body');
   tbody.innerHTML = '';
 
-  if (State.activeCases.length === 0) {
+  const filterSelect = document.getElementById('filter-cases-status');
+  if (filterSelect && !filterSelect.hasAttribute('data-bound')) {
+    filterSelect.setAttribute('data-bound', 'true');
+    filterSelect.addEventListener('change', () => renderCasesTable());
+  }
+
+  const filterVal = filterSelect ? filterSelect.value : 'active';
+
+  const filteredCases = State.activeCases.filter(kase => {
+    const isClosed = kase.status === 'Cerrado' || kase.status === 'Terminado' || kase.status === 'Archivado';
+    if (filterVal === 'active') return !isClosed;
+    if (filterVal === 'closed') return isClosed;
+    return true; // 'all'
+  });
+
+  if (filteredCases.length === 0) {
     tbody.innerHTML = `
       <tr>
         <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
           <i class="fa-solid fa-folder-open" style="font-size: 32px; display: block; margin-bottom: 12px; color: var(--text-dark);"></i>
-          No hay causas registradas aún. Presiona "Nueva Causa".
+          No hay causas que coincidan con este filtro.
         </td>
       </tr>
     `;
     return;
   }
 
-  State.activeCases.forEach(kase => {
+  filteredCases.forEach(kase => {
     const tr = document.createElement('tr');
     const client = State.activeClients.find(c => c.id === kase.clientId);
     const clientName = client ? client.nombre : 'Cliente Desconocido';
