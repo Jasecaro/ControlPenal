@@ -269,6 +269,50 @@
 
     <!-- 4. PAYMENTS VIEW -->
     <section class="view-panel" id="view-payments">
+      <!-- Mini Financial Dashboard Summary -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h3 style="font-family: var(--font-title); font-size: 18px; font-weight: 700; margin: 0;">Resumen Financiero</h3>
+          <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">Balance de cobros y saldos pendientes</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <label for="finance-year-filter" style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Filtrar por año:</label>
+          <select id="finance-year-filter" style="padding: 6px 12px; font-size: 13px; font-family: var(--font-body); background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; outline: none;">
+            <option value="all">Todos los años</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="stats-grid" style="margin-bottom: 24px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        <div class="stat-card">
+          <div class="stat-info">
+            <h3>Total Cobrado</h3>
+            <p id="stat-finance-collected" style="color: var(--success);">$0</p>
+          </div>
+          <div class="stat-icon success">
+            <i class="fa-solid fa-circle-dollar-to-slot"></i>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-info">
+            <h3>Debe a la Fecha</h3>
+            <p id="stat-finance-overdue" style="color: var(--error);">$0</p>
+          </div>
+          <div class="stat-icon error">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-info">
+            <h3>Por Cobrar (Futuro)</h3>
+            <p id="stat-finance-pending" style="color: var(--accent);">$0</p>
+          </div>
+          <div class="stat-icon primary">
+            <i class="fa-solid fa-hourglass-half"></i>
+          </div>
+        </div>
+      </div>
+
       <div class="panel-card">
         <div class="panel-header">
           <h2>Planes de Pago y Cuotas</h2>
@@ -949,6 +993,6 @@
 
   <!-- Main JavaScript Logic -->
   <script src="db.js"></script>
-  <script type="module" src="app.js?v=15"></script>
+  <script type="module" src="app.js?v=16"></script>
 </body>
 </html>

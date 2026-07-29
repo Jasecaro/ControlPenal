@@ -1648,6 +1648,79 @@ function setupPaymentsCRUD() {
 
 function renderPaymentsTable() {
   const tbody = document.getElementById('table-payments-body');
+  const yearSelect = document.getElementById('finance-year-filter');
+  
+  // 1. Populate year filter dynamically with available years
+  const availableYears = new Set();
+  const currentYear = new Date().getFullYear().toString();
+  availableYears.add(currentYear);
+
+  State.activePayments.forEach(plan => {
+    plan.detalleCuotas.forEach(c => {
+      if (c.fechaVencimiento) {
+        availableYears.add(c.fechaVencimiento.slice(0, 4));
+      }
+    });
+  });
+
+  const sortedYears = Array.from(availableYears).sort().reverse();
+  const currentSelectedYear = yearSelect ? (yearSelect.value || 'all') : 'all';
+
+  if (yearSelect && (yearSelect.options.length <= 1 || yearSelect.getAttribute('data-loaded') !== 'true')) {
+    yearSelect.innerHTML = '<option value="all">Todos los años</option>';
+    sortedYears.forEach(y => {
+      const opt = document.createElement('option');
+      opt.value = y;
+      opt.innerText = `Año ${y}`;
+      yearSelect.appendChild(opt);
+    });
+    yearSelect.value = currentSelectedYear;
+    yearSelect.setAttribute('data-loaded', 'true');
+
+    yearSelect.onchange = () => {
+      renderPaymentsTable();
+    };
+  }
+
+  const selectedYear = yearSelect ? yearSelect.value : 'all';
+
+  // 2. Compute Mini Dashboard metrics filtered by selected year
+  const todayStr = new Date().toISOString().split('T')[0];
+  let totalCollected = 0;
+  let totalOverdue = 0;
+  let totalPendingFuture = 0;
+
+  State.activePayments.forEach(plan => {
+    plan.detalleCuotas.forEach(cuota => {
+      const cuotaYear = cuota.fechaVencimiento ? cuota.fechaVencimiento.slice(0, 4) : '';
+      if (selectedYear !== 'all' && cuotaYear !== selectedYear) {
+        return; // Filter out cuotas outside selected year
+      }
+
+      const abonado = (cuota.montoAbonado !== undefined) ? cuota.montoAbonado : (cuota.estado === 'Pagado' ? cuota.monto : 0);
+      const saldo = Math.max(0, cuota.monto - abonado);
+
+      totalCollected += abonado;
+      if (saldo > 0) {
+        if (cuota.fechaVencimiento < todayStr) {
+          totalOverdue += saldo;
+        } else {
+          totalPendingFuture += saldo;
+        }
+      }
+    });
+  });
+
+  // Update Mini Dashboard cards
+  const elCollected = document.getElementById('stat-finance-collected');
+  const elOverdue = document.getElementById('stat-finance-overdue');
+  const elPending = document.getElementById('stat-finance-pending');
+
+  if (elCollected) elCollected.innerText = `$${totalCollected.toLocaleString('es-CL')}`;
+  if (elOverdue) elOverdue.innerText = `$${totalOverdue.toLocaleString('es-CL')}`;
+  if (elPending) elPending.innerText = `$${totalPendingFuture.toLocaleString('es-CL')}`;
+
+  // 3. Render Payments Table
   tbody.innerHTML = '';
 
   if (State.activePayments.length === 0) {
@@ -1667,12 +1740,15 @@ function renderPaymentsTable() {
     const client = State.activeClients.find(c => c.id === plan.clientId);
     const clientName = client ? client.nombre : 'Cliente Desconocido';
     
-    // Check if there are overdue installments
-    const todayStr = new Date().toISOString().split('T')[0];
     let hasOverdue = false;
     let totalPendingAmount = 0;
     
     plan.detalleCuotas.forEach(cuota => {
+      const cuotaYear = cuota.fechaVencimiento ? cuota.fechaVencimiento.slice(0, 4) : '';
+      if (selectedYear !== 'all' && cuotaYear !== selectedYear) {
+        return;
+      }
+
       const abonado = (cuota.montoAbonado !== undefined) ? cuota.montoAbonado : (cuota.estado === 'Pagado' ? cuota.monto : 0);
       const saldo = Math.max(0, cuota.monto - abonado);
       totalPendingAmount += saldo;
