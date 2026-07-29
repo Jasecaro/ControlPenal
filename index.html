@@ -453,18 +453,28 @@
           </div>
         </div>
         <div class="form-row">
-          <div class="form-group">
-            <label for="case-crime">Delito / Materia</label>
-            <input type="text" id="case-crime" required placeholder="Hurto simple, Tráfico, Homicidio">
-          </div>
-          <div class="form-group">
-            <label for="case-procedure">Procedimiento</label>
-            <select id="case-procedure">
-              <option value="ordinario">Procedimiento Ordinario</option>
-              <option value="simplificado">Procedimiento Simplificado</option>
-              <option value="otro">Ninguno / Otro</option>
+          <div class="form-group" id="case-area-group">
+            <label for="case-area">Área del Derecho</label>
+            <select id="case-area">
+              <option value="laboral">Laboral</option>
+              <option value="familia">Familia</option>
+              <option value="civil">Civil</option>
+              <option value="policia_local">Policía Local</option>
+              <option value="penal">Penal</option>
             </select>
           </div>
+          <div class="form-group">
+            <label for="case-crime">Materia / Delito</label>
+            <input type="text" id="case-crime" required placeholder="Despido, Divorcio, Hurto, etc.">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="case-procedure">Procedimiento</label>
+          <select id="case-procedure">
+            <option value="ordinario">Procedimiento Ordinario</option>
+            <option value="simplificado">Procedimiento Simplificado</option>
+            <option value="otro">Ninguno / Otro</option>
+          </select>
         </div>
         <div class="form-group">
           <label for="case-status">Estado Causa</label>

@@ -58,9 +58,12 @@ const State = {
   currentFilesCaseId: null, // Track which case is open in the files modal
 };
 
-function getHitosProcedimiento() {
-  const isLaboral = document.body.classList.contains('theme-laboral');
-  if (isLaboral) {
+function getHitosProcedimiento(area = null) {
+  if (!area) {
+    area = document.body.classList.contains('theme-laboral') ? 'laboral' : 'penal';
+  }
+  
+  if (area === 'laboral') {
     return {
       ordinario: [
         'Demanda Laboral',
@@ -78,6 +81,75 @@ function getHitosProcedimiento() {
         'Sentencia Monitoria',
         'Reclamación / Oposición',
         'Audiencia Única',
+        'Sentencia Definitiva'
+      ]
+    };
+  } else if (area === 'familia') {
+    return {
+      ordinario: [
+        'Demanda / Medida de Protección',
+        'Notificación',
+        'Audiencia Preparatoria',
+        'Audiencia de Juicio',
+        'Sentencia Definitiva',
+        'Cumplimiento'
+      ],
+      especial: [
+        'Presentación',
+        'Resolución y Citación',
+        'Audiencia Única',
+        'Sentencia'
+      ],
+      vif: [
+        'Denuncia VIF',
+        'Medidas Cautelares',
+        'Audiencia Preparatoria',
+        'Audiencia de Juicio',
+        'Sentencia'
+      ]
+    };
+  } else if (area === 'civil') {
+    return {
+      ordinario: [
+        'Demanda Civil',
+        'Notificación',
+        'Contestación',
+        'Réplica y Dúplica',
+        'Conciliación',
+        'Término Probatorio',
+        'Observaciones a la Prueba',
+        'Sentencia Definitiva'
+      ],
+      ejecutivo: [
+        'Demanda Ejecutiva',
+        'Mandamiento de Ejecución y Embargo',
+        'Notificación y Requerimiento',
+        'Excepciones',
+        'Prueba',
+        'Sentencia',
+        'Remate'
+      ],
+      sumario: [
+        'Demanda Sumaria',
+        'Audiencia de Contestación y Conciliación',
+        'Término Probatorio',
+        'Sentencia Definitiva'
+      ]
+    };
+  } else if (area === 'policia_local') {
+    return {
+      infraccional: [
+        'Denuncia / Parte',
+        'Citación',
+        'Indagatoria / Descargos',
+        'Prueba',
+        'Sentencia'
+      ],
+      choque: [
+        'Querella Infraccional',
+        'Demanda Civil',
+        'Notificación',
+        'Audiencia de Contestación y Prueba',
         'Sentencia Definitiva'
       ]
     };
@@ -127,7 +199,7 @@ function updateReminderQuickHitos() {
     return;
   }
   
-  const hitos = getHitosProcedimiento()[kase.procedure] || [];
+  const hitos = getHitosProcedimiento(kase.area)[kase.procedure] || [];
   if (hitos.length === 0) {
     container.style.display = 'none';
     return;
@@ -541,10 +613,9 @@ async function applyUserBranding(user) {
         tabTitle = `Control ${officeName} | Bufete Digital`;
       } else {
         // 2. Si no existe, revisar el correo para auto-provisionamiento
-        const emailLower = user.email.toLowerCase();
         if (emailLower === "cristian@abogadossanbernardo.cl") {
           officeName = "CARO & SEBASTIANI";
-          specialty = "DERECHO LABORAL";
+          specialty = "ABOGADOS";
           themeClass = "theme-laboral";
         } else {
           officeName = "SEBASTIANI & PUGA";
@@ -565,10 +636,9 @@ async function applyUserBranding(user) {
     } catch (err) {
       console.error("Error al cargar la marca del usuario desde Firestore:", err);
       // Fallback local en caso de error
-      const emailLower = (user.email || "").toLowerCase();
       if (emailLower === "cristian@abogadossanbernardo.cl") {
         officeName = "CARO & SEBASTIANI";
-        specialty = "DERECHO LABORAL";
+        specialty = "ABOGADOS";
         themeClass = "theme-laboral";
       }
       tabTitle = `Control ${officeName} | Bufete Digital`;
@@ -606,16 +676,15 @@ async function applyUserBranding(user) {
   document.body.classList.add(themeClass);
 
   // Actualizar las opciones de tipo de procedimiento en el formulario de nueva causa
-  const caseProcedureSelect = document.getElementById('case-procedure');
-  if (caseProcedureSelect && caseProcedureSelect.options.length >= 2) {
-    if (themeClass === 'theme-laboral') {
-      caseProcedureSelect.options[0].text = 'Procedimiento General';
-      caseProcedureSelect.options[1].text = 'Procedimiento Monitorio';
+  const areaGroup = document.getElementById('case-area-group');
+  if (areaGroup) {
+    if ((user && user.email.toLowerCase() === "cristian@abogadossanbernardo.cl")) {
+      areaGroup.style.display = 'block';
     } else {
-      caseProcedureSelect.options[0].text = 'Procedimiento Ordinario';
-      caseProcedureSelect.options[1].text = 'Procedimiento Simplificado';
+      areaGroup.style.display = 'none';
     }
   }
+  updateProcedureOptions();
 }
 
 function setupAuthControls() {
@@ -1147,8 +1216,60 @@ async function deleteClient(id) {
 }
 
 // ================= CASES MANAGEMENT =================
+function updateProcedureOptions() {
+  const areaSelect = document.getElementById('case-area');
+  const procedureSelect = document.getElementById('case-procedure');
+  if (!areaSelect || !procedureSelect) return;
+  
+  const area = areaSelect.value || 'penal';
+  procedureSelect.innerHTML = '';
+  
+  const optionsMap = {
+    'laboral': [
+      {val: 'ordinario', text: 'Procedimiento Ordinario'},
+      {val: 'simplificado', text: 'Procedimiento Monitorio'},
+      {val: 'otro', text: 'Ninguno / Otro'}
+    ],
+    'penal': [
+      {val: 'ordinario', text: 'Procedimiento Ordinario'},
+      {val: 'simplificado', text: 'Procedimiento Simplificado'},
+      {val: 'otro', text: 'Ninguno / Otro'}
+    ],
+    'familia': [
+      {val: 'ordinario', text: 'Procedimiento Ordinario'},
+      {val: 'especial', text: 'Procedimiento Especial'},
+      {val: 'vif', text: 'Violencia Intrafamiliar (VIF)'},
+      {val: 'otro', text: 'Ninguno / Otro'}
+    ],
+    'civil': [
+      {val: 'ordinario', text: 'Procedimiento Ordinario'},
+      {val: 'ejecutivo', text: 'Juicio Ejecutivo'},
+      {val: 'sumario', text: 'Juicio Sumario'},
+      {val: 'otro', text: 'Ninguno / Otro'}
+    ],
+    'policia_local': [
+      {val: 'infraccional', text: 'Procedimiento Infraccional'},
+      {val: 'choque', text: 'Querella / Demanda Civil'},
+      {val: 'otro', text: 'Ninguno / Otro'}
+    ]
+  };
+  
+  const options = optionsMap[area] || optionsMap['penal'];
+  options.forEach(opt => {
+    const el = document.createElement('option');
+    el.value = opt.val;
+    el.innerText = opt.text;
+    procedureSelect.appendChild(el);
+  });
+}
+
 function setupCasesCRUD() {
   const modalId = 'modal-case';
+  
+  const areaSelect = document.getElementById('case-area');
+  if (areaSelect) {
+    areaSelect.addEventListener('change', updateProcedureOptions);
+  }
 
   // Open Nova Causa modal
   document.getElementById('btn-add-case-modal').addEventListener('click', () => {
@@ -1173,10 +1294,11 @@ function setupCasesCRUD() {
     const court = document.getElementById('case-court').value.trim();
     const crime = document.getElementById('case-crime').value.trim();
     const status = document.getElementById('case-status').value;
+    const area = document.getElementById('case-area').value;
     const procedure = document.getElementById('case-procedure').value;
     const details = document.getElementById('case-details').value.trim();
 
-    const caseData = { clientId, rit, court, crime, status, procedure, details };
+    const caseData = { clientId, rit, court, crime, status, area, procedure, details };
 
     // Preserve existing driveLink if editing
     if (id) {
@@ -1258,8 +1380,11 @@ function renderCasesTable() {
       <td style="font-weight: 600; color: var(--primary);">${kase.rit}</td>
       <td style="font-size: 13px;">${kase.court}</td>
       <td style="font-size: 13px;">
+        <div style="margin-bottom: 4px;">
+          <span class="badge" style="background-color: var(--border-color); color: var(--text-dark); font-size: 9px; padding: 2px 4px;">${kase.area ? kase.area.toUpperCase() : (document.body.classList.contains('theme-laboral') ? 'LABORAL' : 'PENAL')}</span>
+        </div>
         <div>${kase.crime}</div>
-        <span style="font-size: 11px; color: var(--text-muted); font-weight: 500;">${kase.procedure === 'ordinario' ? 'Proc. Ordinario' : (kase.procedure === 'simplificado' ? 'Proc. Simplificado' : 'Otro Procedimiento')}</span>
+        <span style="font-size: 11px; color: var(--text-muted); font-weight: 500;">${kase.procedure === 'ordinario' ? 'Proc. Ordinario' : (kase.procedure === 'simplificado' ? 'Proc. Simplificado/Monitorio' : (kase.procedure === 'otro' ? 'Otro' : 'Proc. Especial'))}</span>
       </td>
       <td>${driveUI}</td>
       <td><span class="badge ${statusClass}">${kase.status}</span></td>
@@ -1323,6 +1448,13 @@ function editCase(id) {
     document.getElementById('case-court').value = kase.court;
     document.getElementById('case-crime').value = kase.crime;
     document.getElementById('case-status').value = kase.status;
+    
+    const areaSelect = document.getElementById('case-area');
+    if (areaSelect) {
+      areaSelect.value = kase.area || (document.body.classList.contains('theme-laboral') ? 'laboral' : 'penal');
+      updateProcedureOptions();
+    }
+    
     document.getElementById('case-procedure').value = kase.procedure || 'otro';
     document.getElementById('case-details').value = kase.details || '';
     showModal('modal-case');
@@ -3714,14 +3846,9 @@ async function openCaseSummaryModal(caseId) {
   const procedureMilestonesList = document.getElementById('case-summary-procedure-milestones');
   const procedureTypeLabel = document.getElementById('case-summary-procedure-type-label');
   
-  const hitosMap = getHitosProcedimiento();
+  const hitosMap = getHitosProcedimiento(kase.area);
   if (kase.procedure && kase.procedure !== 'otro' && hitosMap[kase.procedure]) {
-    const isLaboral = document.body.classList.contains('theme-laboral');
-    if (isLaboral) {
-      procedureTypeLabel.innerText = kase.procedure === 'ordinario' ? 'General' : 'Monitorio';
-    } else {
-      procedureTypeLabel.innerText = kase.procedure === 'ordinario' ? 'Ordinario' : 'Simplificado';
-    }
+    procedureTypeLabel.innerText = kase.procedure.charAt(0).toUpperCase() + kase.procedure.slice(1);
     procedureMilestonesList.innerHTML = '';
     
     const hitos = hitosMap[kase.procedure];
