@@ -600,6 +600,7 @@ async function applyUserBranding(user) {
   let tabTitle = "Control Abogados Penal | Bufete Digital";
 
   if (user) {
+    const emailLower = user.email.toLowerCase();
     try {
       // 1. Intentar obtener el perfil desde Firestore
       const profileDocRef = doc(dbFirestore, "users", user.uid, "settings", "profile");
@@ -610,6 +611,13 @@ async function applyUserBranding(user) {
         officeName = profileData.officeName || officeName;
         specialty = profileData.specialty || specialty;
         themeClass = profileData.themeClass || themeClass;
+        
+        // Forzar la actualización del perfil de Cristian a la nueva especialidad
+        if (emailLower === "cristian@abogadossanbernardo.cl" && specialty === "DERECHO LABORAL") {
+          specialty = "ABOGADOS";
+          setDoc(profileDocRef, { specialty: "ABOGADOS" }, { merge: true });
+        }
+        
         tabTitle = `Control ${officeName} | Bufete Digital`;
       } else {
         // 2. Si no existe, revisar el correo para auto-provisionamiento
