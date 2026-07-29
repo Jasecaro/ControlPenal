@@ -1,4 +1,4 @@
-﻿// app.js - Main Application Logic for Control Abogados Penal
+// app.js - Main Application Logic for Control Abogados Penal
 
 // Import Firebase SDKs
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -67,8 +67,8 @@ function getHitosProcedimiento(area = null) {
     return {
       ordinario: [
         'Demanda Laboral',
-        'NotificaciÃ³n de Demanda',
-        'ContestaciÃ³n de Demanda',
+        'Notificación de Demanda',
+        'Contestación de Demanda',
         'Audiencia Preparatoria',
         'Audiencia de Juicio',
         'Sentencia Definitiva',
@@ -76,28 +76,28 @@ function getHitosProcedimiento(area = null) {
       ],
       simplificado: [
         'Reclamo Administrativo (DT)',
-        'Comparendo de ConciliaciÃ³n',
+        'Comparendo de Conciliación',
         'Demanda Monitoria',
         'Sentencia Monitoria',
-        'ReclamaciÃ³n / OposiciÃ³n',
-        'Audiencia Ãšnica',
+        'Reclamación / Oposición',
+        'Audiencia Única',
         'Sentencia Definitiva'
       ]
     };
   } else if (area === 'familia') {
     return {
       ordinario: [
-        'Demanda / Medida de ProtecciÃ³n',
-        'NotificaciÃ³n',
+        'Demanda / Medida de Protección',
+        'Notificación',
         'Audiencia Preparatoria',
         'Audiencia de Juicio',
         'Sentencia Definitiva',
         'Cumplimiento'
       ],
       especial: [
-        'PresentaciÃ³n',
-        'ResoluciÃ³n y CitaciÃ³n',
-        'Audiencia Ãšnica',
+        'Presentación',
+        'Resolución y Citación',
+        'Audiencia Única',
         'Sentencia'
       ],
       vif: [
@@ -112,18 +112,18 @@ function getHitosProcedimiento(area = null) {
     return {
       ordinario: [
         'Demanda Civil',
-        'NotificaciÃ³n',
-        'ContestaciÃ³n',
-        'RÃ©plica y DÃºplica',
-        'ConciliaciÃ³n',
-        'TÃ©rmino Probatorio',
+        'Notificación',
+        'Contestación',
+        'Réplica y Dúplica',
+        'Conciliación',
+        'Término Probatorio',
         'Observaciones a la Prueba',
         'Sentencia Definitiva'
       ],
       ejecutivo: [
         'Demanda Ejecutiva',
-        'Mandamiento de EjecuciÃ³n y Embargo',
-        'NotificaciÃ³n y Requerimiento',
+        'Mandamiento de Ejecución y Embargo',
+        'Notificación y Requerimiento',
         'Excepciones',
         'Prueba',
         'Sentencia',
@@ -131,8 +131,8 @@ function getHitosProcedimiento(area = null) {
       ],
       sumario: [
         'Demanda Sumaria',
-        'Audiencia de ContestaciÃ³n y ConciliaciÃ³n',
-        'TÃ©rmino Probatorio',
+        'Audiencia de Contestación y Conciliación',
+        'Término Probatorio',
         'Sentencia Definitiva'
       ]
     };
@@ -140,7 +140,7 @@ function getHitosProcedimiento(area = null) {
     return {
       infraccional: [
         'Denuncia / Parte',
-        'CitaciÃ³n',
+        'Citación',
         'Indagatoria / Descargos',
         'Prueba',
         'Sentencia'
@@ -148,8 +148,8 @@ function getHitosProcedimiento(area = null) {
       choque: [
         'Querella Infraccional',
         'Demanda Civil',
-        'NotificaciÃ³n',
-        'Audiencia de ContestaciÃ³n y Prueba',
+        'Notificación',
+        'Audiencia de Contestación y Prueba',
         'Sentencia Definitiva'
       ]
     };
@@ -157,11 +157,11 @@ function getHitosProcedimiento(area = null) {
     return {
       ordinario: [
         'Audiencia de Control',
-        'Audiencia de FormalizaciÃ³n',
+        'Audiencia de Formalización',
         'Audiencia de Medidas Cautelares',
-        'Audiencia de Plazo de InvestigaciÃ³n',
-        'PresentaciÃ³n AcusaciÃ³n',
-        'Audiencia de PreparaciÃ³n de Juicio Oral',
+        'Audiencia de Plazo de Investigación',
+        'Presentación Acusación',
+        'Audiencia de Preparación de Juicio Oral',
         'Audiencia de Salida Alternativa',
         'Audiencia de Juicio Abreviado',
         'Audiencia de Juicio Oral',
@@ -170,7 +170,7 @@ function getHitosProcedimiento(area = null) {
       ],
       simplificado: [
         'Audiencia Simplificada',
-        'Audiencia de PreparaciÃ³n de Juicio Oral Simplificado',
+        'Audiencia de Preparación de Juicio Oral Simplificado',
         'Audiencia de Juicio Oral Simplificado',
         'Recursos'
       ]
