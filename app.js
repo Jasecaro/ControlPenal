@@ -1799,6 +1799,10 @@ function showPaymentDetails(paymentId) {
       actionButtons += `
         <button class="btn btn-primary btn-sm pay-abono-btn" data-plan-id="${plan.id}" data-index="${index}"><i class="fa-solid fa-money-bill-wave"></i> Registrar Pago / Abono</button>
       `;
+    } else {
+      actionButtons += `
+        <button class="btn btn-secondary btn-sm pay-abono-btn" data-plan-id="${plan.id}" data-index="${index}"><i class="fa-solid fa-cloud-arrow-up"></i> Subir Comprobante</button>
+      `;
     }
 
     // Display receipt buttons if any receipts exist
@@ -1997,13 +2001,14 @@ function setupFileUploader() {
     if (!plan) return;
 
     const cuota = plan.detalleCuotas[installmentIndex];
-    const saldoPendiente = Math.max(0, cuota.monto - (cuota.montoAbonado || 0));
+    const abonadoPrevio = (cuota.montoAbonado !== undefined) ? cuota.montoAbonado : (cuota.estado === 'Pagado' ? cuota.monto : 0);
+    const saldoPendiente = Math.max(0, cuota.monto - abonadoPrevio);
 
     const abonoInput = document.getElementById('payment-abono-amount');
-    const montoAbono = Number(abonoInput.value);
+    const montoAbono = Number(abonoInput.value || 0);
 
-    if (!montoAbono || montoAbono <= 0) {
-      alert('Por favor ingrese un monto de abono válido.');
+    if (montoAbono <= 0 && !State.selectedUploadFile) {
+      alert('Por favor ingrese un monto de abono válido o seleccione un archivo de comprobante.');
       return;
     }
 
@@ -2103,7 +2108,7 @@ function clearSelectedFile() {
   document.getElementById('file-receipt-input').value = '';
   document.getElementById('drag-drop-uploader').style.display = 'flex';
   document.getElementById('receipt-file-preview').style.display = 'none';
-  document.getElementById('btn-save-receipt-submit').setAttribute('disabled', 'true');
+  document.getElementById('btn-save-receipt-submit').removeAttribute('disabled');
 }
 
 function downloadReceiptFile(receiptId, proposedName) {
