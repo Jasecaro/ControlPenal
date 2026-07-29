@@ -1509,6 +1509,7 @@ function setupPaymentsCRUD() {
     try {
       const clientId = Number(document.getElementById('payment-client-select').value);
       const montoTotal = Number(document.getElementById('payment-amount').value);
+      const montoPie = Number(document.getElementById('payment-pie').value || 0);
       const cuotasTotales = Number(document.getElementById('payment-installments').value);
       const fechaInicioStr = document.getElementById('payment-start-date').value; // YYYY-MM-DD or browser locale format
       const frecuencia = document.getElementById('payment-frequency').value;
@@ -1523,28 +1524,25 @@ function setupPaymentsCRUD() {
         return;
       }
 
-      // Build installment list array
-      const detalleCuotas = [];
-      const cuotaMonto = Math.round(montoTotal / cuotasTotales);
-      
+      if (montoPie >= montoTotal) {
+        alert('El pie inicial no puede ser mayor o igual al monto total.');
+        return;
+      }
+
       // Robust date parsing to handle YYYY-MM-DD, DD/MM/YYYY, and other browser-dependent variations
       let baseDate;
       if (fechaInicioStr.includes('-')) {
         const parts = fechaInicioStr.split('-');
         if (parts[0].length === 4) {
-          // YYYY-MM-DD
           baseDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0);
         } else {
-          // DD-MM-YYYY
           baseDate = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]), 12, 0, 0);
         }
       } else if (fechaInicioStr.includes('/')) {
         const parts = fechaInicioStr.split('/');
         if (parts[0].length === 4) {
-          // YYYY/MM/DD
           baseDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0);
         } else {
-          // DD/MM/YYYY
           baseDate = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]), 12, 0, 0);
         }
       } else {
@@ -1556,32 +1554,55 @@ function setupPaymentsCRUD() {
         return;
       }
 
+      const detalleCuotas = [];
+      let currentNumber = 1;
+
+      // 1. Add Pie if present as Cuota #1
+      if (montoPie > 0) {
+        detalleCuotas.push({
+          numero: currentNumber++,
+          monto: montoPie,
+          montoAbonado: 0,
+          fechaVencimiento: baseDate.toISOString().split('T')[0],
+          estado: 'Pendiente',
+          comprobantes: [],
+          esPie: true
+        });
+      }
+
+      // 2. Divide remaining amount among remaining installments
+      const montoRestante = montoTotal - montoPie;
+      const cuotaMonto = Math.round(montoRestante / cuotasTotales);
+
       for (let i = 1; i <= cuotasTotales; i++) {
         let dueDate = new Date(baseDate);
-        if (i > 1) {
+        // If there was a pie, installments start at next period; otherwise first installment is on baseDate
+        const offset = montoPie > 0 ? i : (i - 1);
+        if (offset > 0) {
           if (frecuencia === 'Mensual') {
-            dueDate.setMonth(baseDate.getMonth() + (i - 1));
+            dueDate.setMonth(baseDate.getMonth() + offset);
           } else if (frecuencia === 'Quincenal') {
-            dueDate.setDate(baseDate.getDate() + (i - 1) * 14);
+            dueDate.setDate(baseDate.getDate() + offset * 14);
           } else {
-            // Pago único
             dueDate = baseDate;
           }
         }
         
         detalleCuotas.push({
-          numero: i,
+          numero: currentNumber++,
           monto: cuotaMonto,
-          fechaVencimiento: dueDate.toISOString().split('T')[0], // YYYY-MM-DD
+          montoAbonado: 0,
+          fechaVencimiento: dueDate.toISOString().split('T')[0],
           estado: 'Pendiente',
-          comprobanteId: null
+          comprobantes: []
         });
       }
 
       const paymentPlan = {
         clientId,
         montoTotal,
-        cuotasTotales,
+        montoPie,
+        cuotasTotales: detalleCuotas.length,
         cuotasPagas: 0,
         detalleCuotas
       };
@@ -1652,11 +1673,11 @@ function renderPaymentsTable() {
     let totalPendingAmount = 0;
     
     plan.detalleCuotas.forEach(cuota => {
-      if (cuota.estado === 'Pendiente') {
-        totalPendingAmount += cuota.monto;
-        if (cuota.fechaVencimiento < todayStr) {
-          hasOverdue = true;
-        }
+      const abonado = cuota.montoAbonado || 0;
+      const saldo = Math.max(0, cuota.monto - abonado);
+      totalPendingAmount += saldo;
+      if (cuota.estado !== 'Pagado' && cuota.fechaVencimiento < todayStr) {
+        hasOverdue = true;
       }
     });
 
@@ -1738,10 +1759,11 @@ function showPaymentDetails(paymentId) {
   const client = State.activeClients.find(c => c.id === plan.clientId);
   const clientName = client ? client.nombre : 'Cliente Desconocido';
   
-  // Compute pending amount
+  // Compute pending amount across all installments accounting for abonos
   let pendingAmount = 0;
   plan.detalleCuotas.forEach(c => {
-    if (c.estado === 'Pendiente') pendingAmount += c.monto;
+    const abonado = c.montoAbonado || 0;
+    pendingAmount += Math.max(0, c.monto - abonado);
   });
 
   document.getElementById('payment-details-client-name').innerText = `Cliente: ${clientName}`;
@@ -1757,10 +1779,14 @@ function showPaymentDetails(paymentId) {
     const card = document.createElement('div');
     card.className = 'installment-item';
 
-    const isOverdue = cuota.estado === 'Pendiente' && cuota.fechaVencimiento < todayStr;
+    const abonado = cuota.montoAbonado || 0;
+    const saldoPendiente = Math.max(0, cuota.monto - abonado);
+    const isOverdue = cuota.estado !== 'Pagado' && cuota.fechaVencimiento < todayStr;
     
-    let badgeUI = `<span class="badge badge-success">Pagado</span>`;
-    if (cuota.estado === 'Pendiente') {
+    let badgeUI = `<span class="badge badge-success">Pagado Totalmente</span>`;
+    if (cuota.estado === 'Parcial') {
+      badgeUI = `<span class="badge badge-primary">Abonado $${abonado.toLocaleString('es-CL')} (Resta $${saldoPendiente.toLocaleString('es-CL')})</span>`;
+    } else if (cuota.estado === 'Pendiente') {
       badgeUI = isOverdue 
         ? `<span class="badge badge-error">Atrasado (Venció ${formatDate(cuota.fechaVencimiento)})</span>`
         : `<span class="badge badge-warning">Pendiente (Vence ${formatDate(cuota.fechaVencimiento)})</span>`;
@@ -1768,46 +1794,49 @@ function showPaymentDetails(paymentId) {
 
     // Set buttons based on status
     let actionButtons = '';
-    if (cuota.estado === 'Pendiente') {
-      actionButtons = `
-        <button class="btn btn-secondary btn-sm fast-pay-btn" data-plan-id="${plan.id}" data-index="${index}"><i class="fa-solid fa-check"></i> Pagado en Efectivo</button>
-        <button class="btn btn-primary btn-sm upload-receipt-btn" data-plan-id="${plan.id}" data-index="${index}"><i class="fa-solid fa-cloud-arrow-up"></i> Comprobante</button>
+    
+    if (cuota.estado !== 'Pagado') {
+      actionButtons += `
+        <button class="btn btn-primary btn-sm pay-abono-btn" data-plan-id="${plan.id}" data-index="${index}"><i class="fa-solid fa-money-bill-wave"></i> Registrar Pago / Abono</button>
       `;
-    } else {
-      // Paid
-      if (cuota.comprobanteId) {
-        actionButtons = `
-          <button class="btn btn-secondary btn-sm download-receipt-btn" data-receipt-id="${cuota.comprobanteId}" data-file-name="comprobante-cuota${cuota.numero}-${clientName.replace(/\s+/g, '')}"><i class="fa-solid fa-download"></i> Ver Recibo</button>
-          <button class="btn btn-danger btn-sm cancel-payment-btn" data-plan-id="${plan.id}" data-index="${index}" title="Deshacer pago"><i class="fa-solid fa-rotate-left"></i></button>
-        `;
-      } else {
-        // paid with cash/no receipt
-        actionButtons = `
-          <span style="font-size: 12px; color: var(--success); margin-right: 8px;"><i class="fa-solid fa-money-bill-1"></i> Sin comprobante (Efectivo)</span>
-          <button class="btn btn-danger btn-sm cancel-payment-btn" data-plan-id="${plan.id}" data-index="${index}" title="Deshacer pago"><i class="fa-solid fa-rotate-left"></i></button>
+    }
+
+    // Display receipt buttons if any receipts exist
+    const comprobantes = cuota.comprobantes || (cuota.comprobanteId ? [{ receiptId: cuota.comprobanteId, monto: cuota.monto }] : []);
+    comprobantes.forEach((comp, compIdx) => {
+      if (comp.receiptId) {
+        actionButtons += `
+          <button class="btn btn-secondary btn-sm download-receipt-btn" data-receipt-id="${comp.receiptId}" data-file-name="comprobante-cuota${cuota.numero}-${clientName.replace(/\s+/g, '')}"><i class="fa-solid fa-download"></i> Recibo #${compIdx + 1}</button>
         `;
       }
+    });
+
+    if (abonado > 0) {
+      actionButtons += `
+        <button class="btn btn-danger btn-sm cancel-payment-btn" data-plan-id="${plan.id}" data-index="${index}" title="Deshacer todos los abonos de esta cuota"><i class="fa-solid fa-rotate-left"></i></button>
+      `;
     }
+
+    const titleLabel = cuota.esPie ? `Pie Inicial (Cuota #${cuota.numero})` : `Cuota #${cuota.numero}`;
 
     card.innerHTML = `
       <div class="installment-info">
-        <h5>Cuota #${cuota.numero} &bull; $${cuota.monto.toLocaleString('es-CL')}</h5>
+        <h5>${titleLabel} &bull; $${cuota.monto.toLocaleString('es-CL')}</h5>
         <p>${badgeUI}</p>
       </div>
-      <div class="installment-actions">
+      <div class="installment-actions" style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
         ${actionButtons}
       </div>
     `;
     container.appendChild(card);
   });
 
-  // Fast Pay (Mark paid in Cash)
-  document.querySelectorAll('.fast-pay-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
+  // Open Payment/Abono Modal
+  document.querySelectorAll('.pay-abono-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
       const planId = Number(e.currentTarget.getAttribute('data-plan-id'));
       const idx = Number(e.currentTarget.getAttribute('data-index'));
-      await markInstallmentAsPaid(planId, idx, null);
-      showPaymentDetails(planId); // Reload
+      openReceiptUploadModal(planId, idx);
     });
   });
 
@@ -1818,15 +1847,6 @@ function showPaymentDetails(paymentId) {
       const idx = Number(e.currentTarget.getAttribute('data-index'));
       await undoInstallmentPayment(planId, idx);
       showPaymentDetails(planId); // Reload
-    });
-  });
-
-  // Upload receipt
-  document.querySelectorAll('.upload-receipt-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const planId = Number(e.currentTarget.getAttribute('data-plan-id'));
-      const idx = Number(e.currentTarget.getAttribute('data-index'));
-      openReceiptUploadModal(planId, idx);
     });
   });
 
@@ -1842,23 +1862,39 @@ function showPaymentDetails(paymentId) {
   showModal('modal-payment-details');
 }
 
-// Helpers for installment state transitions
-async function markInstallmentAsPaid(planId, installmentIdx, receiptId = null) {
+// Register Abono / Payment logic
+async function registerPaymentAbono(planId, installmentIdx, montoAbono, receiptId = null) {
   const plan = State.activePayments.find(p => p.id === planId);
   if (plan) {
-    plan.detalleCuotas[installmentIdx].estado = 'Pagado';
-    plan.detalleCuotas[installmentIdx].comprobanteId = receiptId;
+    const cuota = plan.detalleCuotas[installmentIdx];
+    cuota.montoAbonado = (cuota.montoAbonado || 0) + montoAbono;
+    if (!cuota.comprobantes) cuota.comprobantes = [];
+    
+    cuota.comprobantes.push({
+      monto: montoAbono,
+      fecha: new Date().toLocaleDateString(),
+      receiptId
+    });
+
+    if (cuota.montoAbonado >= cuota.monto) {
+      cuota.estado = 'Pagado';
+    } else {
+      cuota.estado = 'Parcial';
+    }
+
     plan.cuotasPagas = plan.detalleCuotas.filter(c => c.estado === 'Pagado').length;
     
     await DB.update('payments', plan);
 
-    // Mark the automatic reminder as completed
-    const cuotaNum = installmentIdx + 1;
-    const reminders = await DB.getAll('reminders');
-    const linkedReminder = reminders.find(r => r.paymentPlanId === planId && r.cuotaNumero === cuotaNum);
-    if (linkedReminder && !linkedReminder.completado) {
-      linkedReminder.completado = true;
-      await DB.update('reminders', linkedReminder);
+    // Mark reminder completed if totally paid
+    if (cuota.estado === 'Pagado') {
+      const cuotaNum = cuota.numero;
+      const reminders = await DB.getAll('reminders');
+      const linkedReminder = reminders.find(r => r.paymentPlanId === planId && r.cuotaNumero === cuotaNum);
+      if (linkedReminder && !linkedReminder.completado) {
+        linkedReminder.completado = true;
+        await DB.update('reminders', linkedReminder);
+      }
     }
     
     await refreshStateData();
@@ -1870,16 +1906,21 @@ async function markInstallmentAsPaid(planId, installmentIdx, receiptId = null) {
 async function undoInstallmentPayment(planId, installmentIdx) {
   const plan = State.activePayments.find(p => p.id === planId);
   if (plan) {
-    const oldReceiptId = plan.detalleCuotas[installmentIdx].comprobanteId;
+    const cuota = plan.detalleCuotas[installmentIdx];
+    const comprobantes = cuota.comprobantes || (cuota.comprobanteId ? [{ receiptId: cuota.comprobanteId }] : []);
     
-    plan.detalleCuotas[installmentIdx].estado = 'Pendiente';
-    plan.detalleCuotas[installmentIdx].comprobanteId = null;
+    // Reset cuota status
+    cuota.estado = 'Pendiente';
+    cuota.montoAbonado = 0;
+    cuota.comprobanteId = null;
+    cuota.comprobantes = [];
+
     plan.cuotasPagas = plan.detalleCuotas.filter(c => c.estado === 'Pagado').length;
 
     await DB.update('payments', plan);
 
-    // Mark the automatic reminder as pending again
-    const cuotaNum = installmentIdx + 1;
+    // Mark reminder as pending again
+    const cuotaNum = cuota.numero;
     const reminders = await DB.getAll('reminders');
     const linkedReminder = reminders.find(r => r.paymentPlanId === planId && r.cuotaNumero === cuotaNum);
     if (linkedReminder && linkedReminder.completado) {
@@ -1887,9 +1928,11 @@ async function undoInstallmentPayment(planId, installmentIdx) {
       await DB.update('reminders', linkedReminder);
     }
     
-    // Also delete receipt from DB if it existed
-    if (oldReceiptId) {
-      await DB.delete('receipts', oldReceiptId);
+    // Delete receipts from DB if any
+    for (const comp of comprobantes) {
+      if (comp.receiptId) {
+        await DB.delete('receipts', comp.receiptId);
+      }
     }
 
     await refreshStateData();
@@ -1898,7 +1941,7 @@ async function undoInstallmentPayment(planId, installmentIdx) {
   }
 }
 
-// ================= FILE UPLOADER (RECEIPTS) =================
+// ================= FILE UPLOADER & PAYMENTS =================
 function setupFileUploader() {
   const modalId = 'modal-receipt-upload';
   const dropBox = document.getElementById('drag-drop-uploader');
@@ -1945,37 +1988,56 @@ function setupFileUploader() {
     clearSelectedFile();
   });
 
-  // Submit Receipt Record to Database
+  // Submit Payment/Abono Record to Database
   document.getElementById('btn-save-receipt-submit').addEventListener('click', async () => {
-    if (!State.selectedUploadFile || !State.selectedUploadInstallment) return;
+    if (!State.selectedUploadInstallment) return;
 
-    const file = State.selectedUploadFile;
     const { paymentId, installmentIndex } = State.selectedUploadInstallment;
+    const plan = State.activePayments.find(p => p.id === paymentId);
+    if (!plan) return;
+
+    const cuota = plan.detalleCuotas[installmentIndex];
+    const saldoPendiente = Math.max(0, cuota.monto - (cuota.montoAbonado || 0));
+
+    const abonoInput = document.getElementById('payment-abono-amount');
+    const montoAbono = Number(abonoInput.value);
+
+    if (!montoAbono || montoAbono <= 0) {
+      alert('Por favor ingrese un monto de abono válido.');
+      return;
+    }
+
+    if (montoAbono > saldoPendiente) {
+      alert(`El monto del abono no puede superar el saldo pendiente de esta cuota ($${saldoPendiente.toLocaleString('es-CL')}).`);
+      return;
+    }
 
     try {
-      // Save Receipt File Blob
-      const receiptItem = {
-        paymentId,
-        cuotaNumero: installmentIndex + 1,
-        file: file, // Blobs are supported directly by IndexedDB!
-        fileName: file.name,
-        fileType: file.type,
-        fechaSubida: new Date().toLocaleDateString()
-      };
+      let receiptId = null;
+      if (State.selectedUploadFile) {
+        const file = State.selectedUploadFile;
+        const receiptItem = {
+          paymentId,
+          cuotaNumero: cuota.numero,
+          montoAbonado: montoAbono,
+          file: file,
+          fileName: file.name,
+          fileType: file.type,
+          fechaSubida: new Date().toLocaleDateString()
+        };
+        receiptId = await DB.add('receipts', receiptItem);
+      }
 
-      const receiptId = await DB.add('receipts', receiptItem);
-
-      // Mark the installment as paid
-      await markInstallmentAsPaid(paymentId, installmentIndex, receiptId);
+      await registerPaymentAbono(paymentId, installmentIndex, montoAbono, receiptId);
       
       hideModal(modalId);
       clearSelectedFile();
       
-      // Refresh details
+      // Refresh details modal
       showPaymentDetails(paymentId);
     } catch (err) {
-      console.error('Error saving receipt:', err);
-      alert('Ocurrió un error al guardar el comprobante en la base local.');
+      console.error('Error saving payment/receipt:', err);
+      alert('Ocurrió un error al registrar el pago.');
     }
   });
 }
@@ -1989,8 +2051,14 @@ function openReceiptUploadModal(paymentId, installmentIdx) {
   const client = State.activeClients.find(c => c.id === plan.clientId);
   const clientName = client ? client.nombre : 'Cliente Desconocido';
 
-  document.getElementById('receipt-upload-title').innerText = `Subir Comprobante Cuota #${cuota.numero} &bull; Monto: $${cuota.monto.toLocaleString('es-CL')}`;
-  document.getElementById('receipt-upload-client').innerText = `Cliente: ${clientName}`;
+  const saldoPendiente = Math.max(0, cuota.monto - (cuota.montoAbonado || 0));
+
+  document.getElementById('receipt-upload-title').innerText = `Cuota #${cuota.numero} ${cuota.esPie ? '(Pie Inicial)' : ''} \u2022 Total: $${cuota.monto.toLocaleString('es-CL')}`;
+  document.getElementById('receipt-upload-client').innerText = `Cliente: ${clientName} \u2022 Saldo pendiente en esta cuota: $${saldoPendiente.toLocaleString('es-CL')}`;
+
+  const abonoInput = document.getElementById('payment-abono-amount');
+  abonoInput.value = saldoPendiente;
+  abonoInput.max = saldoPendiente;
 
   showModal('modal-receipt-upload');
 }

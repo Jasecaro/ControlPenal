@@ -517,7 +517,11 @@
             <input type="number" id="payment-amount" required placeholder="Monto total del juicio">
           </div>
           <div class="form-group">
-            <label for="payment-installments">Número de Cuotas</label>
+            <label for="payment-pie">Pie Inicial ($)</label>
+            <input type="number" id="payment-pie" min="0" value="0" placeholder="Ej: 800000">
+          </div>
+          <div class="form-group">
+            <label for="payment-installments">Cuotas Restantes</label>
             <input type="number" id="payment-installments" required min="1" max="48" value="1">
           </div>
         </div>
@@ -570,18 +574,23 @@
   <div class="modal-overlay" id="modal-receipt-upload">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>Subir Comprobante de Pago</h3>
+        <h3>Registrar Pago / Abono</h3>
         <button class="modal-close" id="btn-close-receipt-modal">&times;</button>
       </div>
       <div style="margin-bottom: 16px;">
         <h4 id="receipt-upload-title" style="font-size: 15px;">Cuota #1 &bull; Monto: $500.000</h4>
         <p style="color: var(--text-muted); font-size: 12px; margin-top: 4px;" id="receipt-upload-client"></p>
       </div>
+
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label for="payment-abono-amount">Monto a Pagar / Abonar ($)</label>
+        <input type="number" id="payment-abono-amount" required min="1" placeholder="Ingrese el monto abonado">
+      </div>
       
       <!-- Drag & Drop Uploader Container -->
       <div class="uploader-box" id="drag-drop-uploader">
         <i class="fa-solid fa-cloud-arrow-up"></i>
-        <p>Arrastra tu comprobante aquí o haz clic para explorar</p>
+        <p>Arrastra tu comprobante aquí o haz clic para explorar (Opcional si es efectivo)</p>
         <span>Soporta imágenes (PNG, JPG) y PDFs</span>
         <input type="file" id="file-receipt-input" accept="image/*,.pdf" style="display: none;">
       </div>
@@ -600,7 +609,7 @@
 
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" id="btn-cancel-receipt">Cancelar</button>
-        <button type="button" class="btn btn-primary" id="btn-save-receipt-submit" disabled>Registrar Pago</button>
+        <button type="button" class="btn btn-primary" id="btn-save-receipt-submit">Registrar Pago</button>
       </div>
     </div>
   </div>
@@ -940,6 +949,6 @@
 
   <!-- Main JavaScript Logic -->
   <script src="db.js"></script>
-  <script type="module" src="app.js?v=12"></script>
+  <script type="module" src="app.js?v=13"></script>
 </body>
 </html>
