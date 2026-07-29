@@ -1673,7 +1673,7 @@ function renderPaymentsTable() {
     let totalPendingAmount = 0;
     
     plan.detalleCuotas.forEach(cuota => {
-      const abonado = cuota.montoAbonado || 0;
+      const abonado = (cuota.montoAbonado !== undefined) ? cuota.montoAbonado : (cuota.estado === 'Pagado' ? cuota.monto : 0);
       const saldo = Math.max(0, cuota.monto - abonado);
       totalPendingAmount += saldo;
       if (cuota.estado !== 'Pagado' && cuota.fechaVencimiento < todayStr) {
@@ -1762,7 +1762,7 @@ function showPaymentDetails(paymentId) {
   // Compute pending amount across all installments accounting for abonos
   let pendingAmount = 0;
   plan.detalleCuotas.forEach(c => {
-    const abonado = c.montoAbonado || 0;
+    const abonado = (c.montoAbonado !== undefined) ? c.montoAbonado : (c.estado === 'Pagado' ? c.monto : 0);
     pendingAmount += Math.max(0, c.monto - abonado);
   });
 
@@ -1779,7 +1779,7 @@ function showPaymentDetails(paymentId) {
     const card = document.createElement('div');
     card.className = 'installment-item';
 
-    const abonado = cuota.montoAbonado || 0;
+    const abonado = (cuota.montoAbonado !== undefined) ? cuota.montoAbonado : (cuota.estado === 'Pagado' ? cuota.monto : 0);
     const saldoPendiente = Math.max(0, cuota.monto - abonado);
     const isOverdue = cuota.estado !== 'Pagado' && cuota.fechaVencimiento < todayStr;
     
@@ -2051,7 +2051,8 @@ function openReceiptUploadModal(paymentId, installmentIdx) {
   const client = State.activeClients.find(c => c.id === plan.clientId);
   const clientName = client ? client.nombre : 'Cliente Desconocido';
 
-  const saldoPendiente = Math.max(0, cuota.monto - (cuota.montoAbonado || 0));
+  const abonado = (cuota.montoAbonado !== undefined) ? cuota.montoAbonado : (cuota.estado === 'Pagado' ? cuota.monto : 0);
+  const saldoPendiente = Math.max(0, cuota.monto - abonado);
 
   document.getElementById('receipt-upload-title').innerText = `Cuota #${cuota.numero} ${cuota.esPie ? '(Pie Inicial)' : ''} \u2022 Total: $${cuota.monto.toLocaleString('es-CL')}`;
   document.getElementById('receipt-upload-client').innerText = `Cliente: ${clientName} \u2022 Saldo pendiente en esta cuota: $${saldoPendiente.toLocaleString('es-CL')}`;
