@@ -1,4 +1,4 @@
-// app.js - Main Application Logic for Control Abogados Penal
+﻿// app.js - Main Application Logic for Control Abogados Penal
 
 // Import Firebase SDKs
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -27,7 +27,7 @@ try {
     dbFirestore = getFirestore(firebaseApp);
     storage = getStorage(firebaseApp);
   } else {
-    console.warn("Firebase no ha sido configurado aún. Edita firebaseConfig en app.js.");
+    console.warn("Firebase no ha sido configurado aÃºn. Edita firebaseConfig en app.js.");
   }
 } catch (error) {
   console.error("Error al inicializar Firebase:", error);
@@ -67,8 +67,8 @@ function getHitosProcedimiento(area = null) {
     return {
       ordinario: [
         'Demanda Laboral',
-        'Notificación de Demanda',
-        'Contestación de Demanda',
+        'NotificaciÃ³n de Demanda',
+        'ContestaciÃ³n de Demanda',
         'Audiencia Preparatoria',
         'Audiencia de Juicio',
         'Sentencia Definitiva',
@@ -76,28 +76,28 @@ function getHitosProcedimiento(area = null) {
       ],
       simplificado: [
         'Reclamo Administrativo (DT)',
-        'Comparendo de Conciliación',
+        'Comparendo de ConciliaciÃ³n',
         'Demanda Monitoria',
         'Sentencia Monitoria',
-        'Reclamación / Oposición',
-        'Audiencia Única',
+        'ReclamaciÃ³n / OposiciÃ³n',
+        'Audiencia Ãšnica',
         'Sentencia Definitiva'
       ]
     };
   } else if (area === 'familia') {
     return {
       ordinario: [
-        'Demanda / Medida de Protección',
-        'Notificación',
+        'Demanda / Medida de ProtecciÃ³n',
+        'NotificaciÃ³n',
         'Audiencia Preparatoria',
         'Audiencia de Juicio',
         'Sentencia Definitiva',
         'Cumplimiento'
       ],
       especial: [
-        'Presentación',
-        'Resolución y Citación',
-        'Audiencia Única',
+        'PresentaciÃ³n',
+        'ResoluciÃ³n y CitaciÃ³n',
+        'Audiencia Ãšnica',
         'Sentencia'
       ],
       vif: [
@@ -112,18 +112,18 @@ function getHitosProcedimiento(area = null) {
     return {
       ordinario: [
         'Demanda Civil',
-        'Notificación',
-        'Contestación',
-        'Réplica y Dúplica',
-        'Conciliación',
-        'Término Probatorio',
+        'NotificaciÃ³n',
+        'ContestaciÃ³n',
+        'RÃ©plica y DÃºplica',
+        'ConciliaciÃ³n',
+        'TÃ©rmino Probatorio',
         'Observaciones a la Prueba',
         'Sentencia Definitiva'
       ],
       ejecutivo: [
         'Demanda Ejecutiva',
-        'Mandamiento de Ejecución y Embargo',
-        'Notificación y Requerimiento',
+        'Mandamiento de EjecuciÃ³n y Embargo',
+        'NotificaciÃ³n y Requerimiento',
         'Excepciones',
         'Prueba',
         'Sentencia',
@@ -131,8 +131,8 @@ function getHitosProcedimiento(area = null) {
       ],
       sumario: [
         'Demanda Sumaria',
-        'Audiencia de Contestación y Conciliación',
-        'Término Probatorio',
+        'Audiencia de ContestaciÃ³n y ConciliaciÃ³n',
+        'TÃ©rmino Probatorio',
         'Sentencia Definitiva'
       ]
     };
@@ -140,7 +140,7 @@ function getHitosProcedimiento(area = null) {
     return {
       infraccional: [
         'Denuncia / Parte',
-        'Citación',
+        'CitaciÃ³n',
         'Indagatoria / Descargos',
         'Prueba',
         'Sentencia'
@@ -148,8 +148,8 @@ function getHitosProcedimiento(area = null) {
       choque: [
         'Querella Infraccional',
         'Demanda Civil',
-        'Notificación',
-        'Audiencia de Contestación y Prueba',
+        'NotificaciÃ³n',
+        'Audiencia de ContestaciÃ³n y Prueba',
         'Sentencia Definitiva'
       ]
     };
@@ -157,11 +157,11 @@ function getHitosProcedimiento(area = null) {
     return {
       ordinario: [
         'Audiencia de Control',
-        'Audiencia de Formalización',
+        'Audiencia de FormalizaciÃ³n',
         'Audiencia de Medidas Cautelares',
-        'Audiencia de Plazo de Investigación',
-        'Presentación Acusación',
-        'Audiencia de Preparación de Juicio Oral',
+        'Audiencia de Plazo de InvestigaciÃ³n',
+        'PresentaciÃ³n AcusaciÃ³n',
+        'Audiencia de PreparaciÃ³n de Juicio Oral',
         'Audiencia de Salida Alternativa',
         'Audiencia de Juicio Abreviado',
         'Audiencia de Juicio Oral',
@@ -170,7 +170,7 @@ function getHitosProcedimiento(area = null) {
       ],
       simplificado: [
         'Audiencia Simplificada',
-        'Audiencia de Preparación de Juicio Oral Simplificado',
+        'Audiencia de PreparaciÃ³n de Juicio Oral Simplificado',
         'Audiencia de Juicio Oral Simplificado',
         'Recursos'
       ]
@@ -223,7 +223,7 @@ function updateReminderQuickHitos() {
       
       if (hito.toLowerCase().includes('audiencia')) {
         typeSelect.value = 'Audiencia';
-      } else if (hito.toLowerCase().includes('recursos') || hito.toLowerCase().includes('acusación')) {
+      } else if (hito.toLowerCase().includes('recursos') || hito.toLowerCase().includes('acusaciÃ³n')) {
         typeSelect.value = 'Plazo Legal';
       }
     });
@@ -414,9 +414,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 5. Setup Firebase Authentication Gate
     setupAuthControls();
 
-    console.log('Eventos de aplicación iniciados exitosamente.');
+    console.log('Eventos de aplicaciÃ³n iniciados exitosamente.');
   } catch (error) {
-    console.error('Error al inicializar la aplicación:', error);
+    console.error('Error al inicializar la aplicaciÃ³n:', error);
   }
 });
 
@@ -427,7 +427,7 @@ async function refreshStateData() {
   State.activePayments = await DB.getAll('payments');
   State.activeReminders = await DB.getAll('reminders');
 
-  // Ejecutar verificación y envío de correos recordatorios
+  // Ejecutar verificaciÃ³n y envÃ­o de correos recordatorios
   await checkAndSendEmailNotifications();
 }
 
@@ -443,7 +443,7 @@ async function checkAndSendEmailNotifications() {
     toEmail = "cristian@abogadossanbernardo.cl, info@abogadossanbernardo.cl";
   }
 
-  // 1. Chequear Recordatorios (Eventos): 1 semana antes (entre 6 y 7 días)
+  // 1. Chequear Recordatorios (Eventos): 1 semana antes (entre 6 y 7 dÃ­as)
   for (const rem of State.activeReminders) {
     if (rem.completado || rem.tipo === 'Pago' || rem.paymentPlanId) continue;
     if (rem.emailSent_1weekBefore) continue;
@@ -454,7 +454,7 @@ async function checkAndSendEmailNotifications() {
     const timeDiff = cleanRemDate.getTime() - cleanToday.getTime();
     const daysDiff = Math.round(timeDiff / (1000 * 3600 * 24));
 
-    // Si falta entre 0 y 7 días para el evento, mandar aviso de 1 semana
+    // Si falta entre 0 y 7 dÃ­as para el evento, mandar aviso de 1 semana
     if (daysDiff > 0 && daysDiff <= 7) {
       try {
         const dateText = remDate.toLocaleString('es-CL', { dateStyle: 'medium', timeStyle: 'short' });
@@ -464,7 +464,7 @@ async function checkAndSendEmailNotifications() {
         const subject = `[Control Abogados] Evento en 1 semana: ${rem.titulo}`;
         const htmlBody = `
           <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <h2 style="color: #2563eb;">Recordatorio de Evento Próximo</h2>
+            <h2 style="color: #2563eb;">Recordatorio de Evento PrÃ³ximo</h2>
             <p>Hola,</p>
             <p>Te recordamos que se aproxima el siguiente evento dentro de una semana:</p>
             <table style="border-collapse: collapse; width: 100%; margin-top: 15px; margin-bottom: 15px;">
@@ -472,10 +472,10 @@ async function checkAndSendEmailNotifications() {
               <tr><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Tipo:</td><td style="padding: 8px; border: 1px solid #e2e8f0;">${rem.tipo}</td></tr>
               <tr style="background-color: #f8fafc;"><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Fecha y Hora:</td><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: text-main; color: #1e40af; font-weight: bold;">${dateText}</td></tr>
               <tr><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Relacionado:</td><td style="padding: 8px; border: 1px solid #e2e8f0;">${caseLabel}</td></tr>
-              ${rem.descripcion ? `<tr style="background-color: #f8fafc;"><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Descripción:</td><td style="padding: 8px; border: 1px solid #e2e8f0; font-style: italic;">"${rem.descripcion}"</td></tr>` : ''}
+              ${rem.descripcion ? `<tr style="background-color: #f8fafc;"><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">DescripciÃ³n:</td><td style="padding: 8px; border: 1px solid #e2e8f0; font-style: italic;">"${rem.descripcion}"</td></tr>` : ''}
             </table>
             <p style="font-size: 0.85em; color: #666; border-top: 1px solid #e2e8f0; padding-top: 10px; margin-top: 20px;">
-              Este es un correo automático enviado a tu casilla personal de gestión de Control Abogados. Por favor no respondas a este correo.
+              Este es un correo automÃ¡tico enviado a tu casilla personal de gestiÃ³n de Control Abogados. Por favor no respondas a este correo.
             </p>
           </div>
         `;
@@ -497,9 +497,9 @@ async function checkAndSendEmailNotifications() {
         // Modificar bandera localmente y en Firestore
         rem.emailSent_1weekBefore = true;
         await DB.update('reminders', rem);
-        console.log(`Notificación de 1 semana enviada para evento: ${rem.titulo}`);
+        console.log(`NotificaciÃ³n de 1 semana enviada para evento: ${rem.titulo}`);
       } catch (err) {
-        console.error("Error al enviar notificación de recordatorio:", err);
+        console.error("Error al enviar notificaciÃ³n de recordatorio:", err);
       }
     }
   }
@@ -522,10 +522,10 @@ async function checkAndSendEmailNotifications() {
       let flagName = null;
 
       if (daysOverdue === 1 && !cuota.emailSent_1day) {
-        milestone = "1 día";
+        milestone = "1 dÃ­a";
         flagName = "emailSent_1day";
       } else if (daysOverdue === 3 && !cuota.emailSent_3days) {
-        milestone = "3 días";
+        milestone = "3 dÃ­as";
         flagName = "emailSent_3days";
       } else if (daysOverdue === 7 && !cuota.emailSent_1week) {
         milestone = "1 semana";
@@ -548,11 +548,11 @@ async function checkAndSendEmailNotifications() {
                 <tr><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Detalle:</td><td style="padding: 8px; border: 1px solid #e2e8f0;">Cuota #${cuota.numero} de Plan de Pago</td></tr>
                 <tr style="background-color: #f8fafc;"><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Monto a Cobrar:</td><td style="padding: 8px; border: 1px solid #e2e8f0; color: #b91c1c; font-weight: bold;">$${cuota.monto.toLocaleString('es-CL')}</td></tr>
                 <tr><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Vencimiento:</td><td style="padding: 8px; border: 1px solid #e2e8f0;">${cuota.fechaVencimiento}</td></tr>
-                <tr style="background-color: #f8fafc;"><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Atraso Actual:</td><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; color: #dc2626;">${daysOverdue} días</td></tr>
+                <tr style="background-color: #f8fafc;"><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">Atraso Actual:</td><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; color: #dc2626;">${daysOverdue} dÃ­as</td></tr>
               </table>
-              <p>Por favor recuerda realizar la gestión de cobro con el cliente a la brevedad.</p>
+              <p>Por favor recuerda realizar la gestiÃ³n de cobro con el cliente a la brevedad.</p>
               <p style="font-size: 0.85em; color: #666; border-top: 1px solid #e2e8f0; padding-top: 10px; margin-top: 20px;">
-                Este es un correo automático enviado a tu casilla personal de gestión de Control Abogados. Por favor no respondas a este correo.
+                Este es un correo automÃ¡tico enviado a tu casilla personal de gestiÃ³n de Control Abogados. Por favor no respondas a este correo.
               </p>
             </div>
           `;
@@ -574,9 +574,9 @@ async function checkAndSendEmailNotifications() {
           // Marcar la bandera localmente y guardar el plan
           cuota[flagName] = true;
           planUpdated = true;
-          console.log(`Notificación de cobro por cuota #${cuota.numero} de ${clientName} enviada (${milestone} atraso)`);
+          console.log(`NotificaciÃ³n de cobro por cuota #${cuota.numero} de ${clientName} enviada (${milestone} atraso)`);
         } catch (err) {
-          console.error(`Error al enviar notificación de cobro para cuota #${cuota.numero}:`, err);
+          console.error(`Error al enviar notificaciÃ³n de cobro para cuota #${cuota.numero}:`, err);
         }
       }
     }
@@ -612,7 +612,7 @@ async function applyUserBranding(user) {
         specialty = profileData.specialty || specialty;
         themeClass = profileData.themeClass || themeClass;
         
-        // Forzar la actualización del perfil de Cristian a la nueva especialidad
+        // Forzar la actualizaciÃ³n del perfil de Cristian a la nueva especialidad
         if (emailLower === "cristian@abogadossanbernardo.cl" && specialty === "DERECHO LABORAL") {
           specialty = "ABOGADOS";
           setDoc(profileDocRef, { specialty: "ABOGADOS" }, { merge: true });
@@ -632,7 +632,7 @@ async function applyUserBranding(user) {
         }
         tabTitle = `Control ${officeName} | Bufete Digital`;
 
-        // 3. Guardar el perfil inicial automáticamente en Firestore
+        // 3. Guardar el perfil inicial automÃ¡ticamente en Firestore
         await setDoc(profileDocRef, {
           officeName: officeName,
           specialty: specialty,
@@ -652,8 +652,8 @@ async function applyUserBranding(user) {
       tabTitle = `Control ${officeName} | Bufete Digital`;
     }
   } else {
-    // Valores neutros por defecto cuando se cierra sesión
-    if (loginLogoTitle) loginLogoTitle.textContent = "Portal de Gestión Jurídica";
+    // Valores neutros por defecto cuando se cierra sesiÃ³n
+    if (loginLogoTitle) loginLogoTitle.textContent = "Portal de GestiÃ³n JurÃ­dica";
     if (loginLogoSubtitle) loginLogoSubtitle.textContent = "Ingrese sus credenciales para acceder";
     
     if (sidebarLogoTitle) sidebarLogoTitle.textContent = "SEBASTIANI & PUGA";
@@ -675,7 +675,7 @@ async function applyUserBranding(user) {
   if (sidebarLogoSubtitle) sidebarLogoSubtitle.textContent = specialty.toUpperCase();
   
   if (loginLogoTitle) loginLogoTitle.textContent = officeName.toUpperCase();
-  if (loginLogoSubtitle) loginLogoSubtitle.innerHTML = `${specialty} &bull; Portal de Gestión`;
+  if (loginLogoSubtitle) loginLogoSubtitle.innerHTML = `${specialty} &bull; Portal de GestiÃ³n`;
   
   document.title = tabTitle;
 
@@ -715,22 +715,22 @@ function setupAuthControls() {
 
       try {
         if (!auth) {
-          throw new Error("Firebase no está configurado. Por favor edita la variable firebaseConfig en la parte superior de app.js.");
+          throw new Error("Firebase no estÃ¡ configurado. Por favor edita la variable firebaseConfig en la parte superior de app.js.");
         }
         await signInWithEmailAndPassword(auth, email, password);
       } catch (err) {
         console.error("Login error:", err);
-        loginErrorMsg.textContent = "Error al iniciar sesión: " + (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' ? 'Correo o contraseña incorrectos.' : err.message);
+        loginErrorMsg.textContent = "Error al iniciar sesiÃ³n: " + (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' ? 'Correo o contraseÃ±a incorrectos.' : err.message);
         loginErrorMsg.style.display = 'block';
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Iniciar Sesión';
+        submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Iniciar SesiÃ³n';
       }
     });
   }
 
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
-      if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+      if (confirm('Â¿EstÃ¡s seguro de que deseas cerrar sesiÃ³n?')) {
         try {
           if (auth) {
             await signOut(auth);
@@ -750,7 +750,7 @@ function setupAuthControls() {
         DB = FirestoreDB;
         window.DB = FirestoreDB;
 
-        // Aplicar marca dinámica del usuario
+        // Aplicar marca dinÃ¡mica del usuario
         await applyUserBranding(user);
 
         // Update profile in sidebar
@@ -781,7 +781,7 @@ function setupAuthControls() {
         DB = LocalDB;
         window.DB = LocalDB;
 
-        // Limpiar marca dinámica al cerrar sesión
+        // Limpiar marca dinÃ¡mica al cerrar sesiÃ³n
         await applyUserBranding(null);
 
         document.getElementById('sidebar-user-profile').style.display = 'none';
@@ -790,13 +790,13 @@ function setupAuthControls() {
         const submitBtn = document.getElementById('btn-login-submit');
         if (submitBtn) {
           submitBtn.disabled = false;
-          submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Iniciar Sesión';
+          submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Iniciar SesiÃ³n';
         }
       }
     });
   } else {
     document.getElementById('login-overlay').style.display = 'flex';
-    loginErrorMsg.innerHTML = '<strong>Error de configuración:</strong><br>El proyecto de Firebase no ha sido configurado en <code>app.js</code>. Edita la variable <code>firebaseConfig</code> al inicio del archivo para activarlo.';
+    loginErrorMsg.innerHTML = '<strong>Error de configuraciÃ³n:</strong><br>El proyecto de Firebase no ha sido configurado en <code>app.js</code>. Edita la variable <code>firebaseConfig</code> al inicio del archivo para activarlo.';
     loginErrorMsg.style.display = 'block';
     const submitBtn = document.getElementById('btn-login-submit');
     if (submitBtn) submitBtn.disabled = true;
@@ -846,7 +846,7 @@ async function checkLocalDataForMigration() {
           
           await clearLocalIndexedDB();
           
-          alert('¡Datos migrados exitosamente a la nube!');
+          alert('Â¡Datos migrados exitosamente a la nube!');
           hideModal('modal-migration');
           
           await refreshStateData();
@@ -855,15 +855,15 @@ async function checkLocalDataForMigration() {
           renderDashboardLists();
         } catch (err) {
           console.error("Migration error:", err);
-          alert("Error al migrar algunos datos. Por favor inténtalo de nuevo.");
+          alert("Error al migrar algunos datos. Por favor intÃ©ntalo de nuevo.");
           document.getElementById('btn-start-migration').disabled = false;
           document.getElementById('btn-skip-migration').disabled = false;
-          document.getElementById('btn-start-migration').innerHTML = '<i class="fa-solid fa-circle-check"></i> Sí, Migrar datos';
+          document.getElementById('btn-start-migration').innerHTML = '<i class="fa-solid fa-circle-check"></i> SÃ­, Migrar datos';
         }
       };
       
       document.getElementById('btn-skip-migration').onclick = async () => {
-        if (confirm('¿Estás seguro de empezar de cero? Esto borrará tus datos locales para evitar conflictos.')) {
+        if (confirm('Â¿EstÃ¡s seguro de empezar de cero? Esto borrarÃ¡ tus datos locales para evitar conflictos.')) {
           await clearLocalIndexedDB();
           hideModal('modal-migration');
           
@@ -1022,13 +1022,13 @@ function renderView(viewName) {
       renderDashboardLists();
       break;
     case 'clients':
-      title.innerText = 'Gestión de Clientes';
-      subtitle.innerText = 'Registra, edita y revisa la ficha básica de tus representados.';
+      title.innerText = 'GestiÃ³n de Clientes';
+      subtitle.innerText = 'Registra, edita y revisa la ficha bÃ¡sica de tus representados.';
       renderClientsTable();
       break;
     case 'cases':
       title.innerText = 'Causas y Juicios';
-      subtitle.innerText = 'Administración de causas penales vinculadas a carpetas de Google Drive.';
+      subtitle.innerText = 'AdministraciÃ³n de causas penales vinculadas a carpetas de Google Drive.';
       renderCasesTable();
       break;
     case 'payments':
@@ -1042,7 +1042,7 @@ function renderView(viewName) {
       renderCalendar();
       break;
     case 'settings':
-      title.innerText = 'Configuración del Bufete';
+      title.innerText = 'ConfiguraciÃ³n del Bufete';
       subtitle.innerText = 'Respalda la base de datos de tu oficina de forma segura.';
       break;
   }
@@ -1110,7 +1110,7 @@ function renderClientsTable() {
       <tr>
         <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
           <i class="fa-solid fa-users-slash" style="font-size: 32px; display: block; margin-bottom: 12px; color: var(--text-dark);"></i>
-          No hay clientes registrados aún. Presiona "Registrar Cliente".
+          No hay clientes registrados aÃºn. Presiona "Registrar Cliente".
         </td>
       </tr>
     `;
@@ -1128,8 +1128,8 @@ function renderClientsTable() {
       <td style="font-weight: 600;">${client.rut}</td>
       <td style="font-family: var(--font-title); font-weight: 500;">${client.nombre}</td>
       <td>
-        <div style="font-size: 13px;"><i class="fa-solid fa-phone" style="font-size: 11px; color: var(--text-muted); margin-right: 4px;"></i> ${client.telefono || '—'}</div>
-        <div style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-envelope" style="font-size: 10px; margin-right: 4px;"></i> ${client.email || '—'}</div>
+        <div style="font-size: 13px;"><i class="fa-solid fa-phone" style="font-size: 11px; color: var(--text-muted); margin-right: 4px;"></i> ${client.telefono || 'â€”'}</div>
+        <div style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-envelope" style="font-size: 10px; margin-right: 4px;"></i> ${client.email || 'â€”'}</div>
       </td>
       <td style="font-size: 13px;">${client.fechaRegistro}</td>
       <td><span class="badge ${statusClass}">${client.estado}</span></td>
@@ -1186,7 +1186,7 @@ async function deleteClient(id) {
   const client = State.activeClients.find(c => c.id === Number(id));
   if (!client) return;
 
-  const confirmDelete = confirm(`¿Estás seguro de que deseas eliminar al cliente "${client.nombre}"? Esto también desvinculará sus causas y planes de pago.`);
+  const confirmDelete = confirm(`Â¿EstÃ¡s seguro de que deseas eliminar al cliente "${client.nombre}"? Esto tambiÃ©n desvincularÃ¡ sus causas y planes de pago.`);
   if (confirmDelete) {
     try {
       await DB.delete('clients', id);
@@ -1361,7 +1361,7 @@ function renderCasesTable() {
       <tr>
         <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
           <i class="fa-solid fa-folder-open" style="font-size: 32px; display: block; margin-bottom: 12px; color: var(--text-dark);"></i>
-          No hay causas registradas aún. Presiona "Nueva Causa".
+          No hay causas registradas aÃºn. Presiona "Nueva Causa".
         </td>
       </tr>
     `;
@@ -1375,7 +1375,7 @@ function renderCasesTable() {
     
     let statusClass = 'badge-primary'; // Investigacion
     if (kase.status === 'Juicio Oral') statusClass = 'badge-error';
-    if (kase.status === 'Apelación') statusClass = 'badge-warning';
+    if (kase.status === 'ApelaciÃ³n') statusClass = 'badge-warning';
     if (kase.status === 'Cerrado') statusClass = 'badge-success';
 
     // Google Drive Link UI
@@ -1473,7 +1473,7 @@ async function deleteCase(id) {
   const kase = State.activeCases.find(c => c.id === Number(id));
   if (!kase) return;
 
-  const confirmDelete = confirm(`¿Deseas eliminar la causa RIT "${kase.rit}"?`);
+  const confirmDelete = confirm(`Â¿Deseas eliminar la causa RIT "${kase.rit}"?`);
   if (confirmDelete) {
     try {
       await DB.delete('cases', id);
@@ -1552,7 +1552,7 @@ function setupPaymentsCRUD() {
       }
 
       if (isNaN(baseDate.getTime())) {
-        alert('La fecha de vencimiento ingresada no es válida.');
+        alert('La fecha de vencimiento ingresada no es vÃ¡lida.');
         return;
       }
 
@@ -1564,7 +1564,7 @@ function setupPaymentsCRUD() {
           } else if (frecuencia === 'Quincenal') {
             dueDate.setDate(baseDate.getDate() + (i - 1) * 14);
           } else {
-            // Pago único
+            // Pago Ãºnico
             dueDate = baseDate;
           }
         }
@@ -1634,7 +1634,7 @@ function renderPaymentsTable() {
       <tr>
         <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
           <i class="fa-solid fa-credit-card" style="font-size: 32px; display: block; margin-bottom: 12px; color: var(--text-dark);"></i>
-          No hay planes de pago creados aún. Presiona "Crear Plan de Pago".
+          No hay planes de pago creados aÃºn. Presiona "Crear Plan de Pago".
         </td>
       </tr>
     `;
@@ -1660,7 +1660,7 @@ function renderPaymentsTable() {
       }
     });
 
-    let statusUI = `<span class="badge badge-success">Al día</span>`;
+    let statusUI = `<span class="badge badge-success">Al dÃ­a</span>`;
     if (plan.cuotasPagas === plan.cuotasTotales) {
       statusUI = `<span class="badge badge-primary">Totalmente Pagado</span>`;
     } else if (hasOverdue) {
@@ -1703,7 +1703,7 @@ async function deletePaymentPlan(id) {
   const plan = State.activePayments.find(p => p.id === Number(id));
   if (!plan) return;
 
-  const confirmDelete = confirm(`¿Estás seguro de que deseas eliminar este plan de pagos? Se eliminarán todos los comprobantes y recordatorios asociados.`);
+  const confirmDelete = confirm(`Â¿EstÃ¡s seguro de que deseas eliminar este plan de pagos? Se eliminarÃ¡n todos los comprobantes y recordatorios asociados.`);
   if (confirmDelete) {
     try {
       await DB.delete('payments', id);
@@ -1762,7 +1762,7 @@ function showPaymentDetails(paymentId) {
     let badgeUI = `<span class="badge badge-success">Pagado</span>`;
     if (cuota.estado === 'Pendiente') {
       badgeUI = isOverdue 
-        ? `<span class="badge badge-error">Atrasado (Venció ${formatDate(cuota.fechaVencimiento)})</span>`
+        ? `<span class="badge badge-error">Atrasado (VenciÃ³ ${formatDate(cuota.fechaVencimiento)})</span>`
         : `<span class="badge badge-warning">Pendiente (Vence ${formatDate(cuota.fechaVencimiento)})</span>`;
     }
 
@@ -1975,7 +1975,7 @@ function setupFileUploader() {
       showPaymentDetails(paymentId);
     } catch (err) {
       console.error('Error saving receipt:', err);
-      alert('Ocurrió un error al guardar el comprobante en la base local.');
+      alert('OcurriÃ³ un error al guardar el comprobante en la base local.');
     }
   });
 }
@@ -1999,13 +1999,13 @@ function handleSelectedFile(file) {
   // Validate file type
   const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf'];
   if (!validTypes.includes(file.type)) {
-    alert('Formato de archivo no válido. Solo se admiten archivos PNG, JPG o PDF.');
+    alert('Formato de archivo no vÃ¡lido. Solo se admiten archivos PNG, JPG o PDF.');
     return;
   }
 
   // Validate size (max 5MB to keep IndexedDB light)
   if (file.size > 5 * 1024 * 1024) {
-    alert('El archivo es demasiado grande. El límite de tamaño es de 5 MB.');
+    alert('El archivo es demasiado grande. El lÃ­mite de tamaÃ±o es de 5 MB.');
     return;
   }
 
@@ -2117,7 +2117,7 @@ function setupRemindersCRUD() {
   btnTabStandard.addEventListener('click', () => switchTab('standard'));
   btnTabInvestigation.addEventListener('click', () => switchTab('investigation'));
 
-  // Aritmética de cálculo de plazos
+  // AritmÃ©tica de cÃ¡lculo de plazos
   const baseDateInput = document.getElementById('inv-base-date');
   const daysInput = document.getElementById('inv-days-input');
   const targetDateDisplay = document.getElementById('inv-target-date-display');
@@ -2127,7 +2127,7 @@ function setupRemindersCRUD() {
     const days = parseInt(daysInput.value) || 0;
 
     if (!baseDateStr) {
-      targetDateDisplay.innerText = '—';
+      targetDateDisplay.innerText = 'â€”';
       return;
     }
 
@@ -2171,10 +2171,10 @@ function setupRemindersCRUD() {
       
       reminderData = { ...reminderData, caseId, titulo, fecha, tipo, descripcion };
     } else {
-      // Plazo de investigación
+      // Plazo de investigaciÃ³n
       const caseId = document.getElementById('reminder-case-select-inv').value ? Number(document.getElementById('reminder-case-select-inv').value) : null;
       if (!caseId) {
-        alert('Por favor, asocie el plazo de investigación a una causa.');
+        alert('Por favor, asocie el plazo de investigaciÃ³n a una causa.');
         return;
       }
 
@@ -2186,7 +2186,7 @@ function setupRemindersCRUD() {
 
       const days = parseInt(daysInput.value) || 0;
       if (days <= 0) {
-        alert('Por favor, ingrese una cantidad de días válida.');
+        alert('Por favor, ingrese una cantidad de dÃ­as vÃ¡lida.');
         return;
       }
 
@@ -2201,10 +2201,10 @@ function setupRemindersCRUD() {
       reminderData = {
         ...reminderData,
         caseId,
-        titulo: 'Vencimiento Plazo Investigación',
+        titulo: 'Vencimiento Plazo InvestigaciÃ³n',
         fecha: `${calculatedDateStr}T09:00`,
         tipo: 'Plazo Legal',
-        descripcion: `Plazo de investigación fijado en la audiencia del ${formattedBaseDate} por ${days} días corridos.`
+        descripcion: `Plazo de investigaciÃ³n fijado en la audiencia del ${formattedBaseDate} por ${days} dÃ­as corridos.`
       };
     }
 
@@ -2269,7 +2269,7 @@ function openNewReminderModal(prefilledDate = '', prefilledCaseId = null, prefil
   const todayStr = new Date().toISOString().split('T')[0];
   document.getElementById('inv-base-date').value = todayStr;
   document.getElementById('inv-days-input').value = '60';
-  document.getElementById('inv-target-date-display').innerText = '—';
+  document.getElementById('inv-target-date-display').innerText = 'â€”';
 
   // Populate cases selector (Standard)
   const select = document.getElementById('reminder-case-select');
@@ -2308,7 +2308,7 @@ function openNewReminderModal(prefilledDate = '', prefilledCaseId = null, prefil
     const typeSelect = document.getElementById('reminder-type');
     if (prefilledTitle.toLowerCase().includes('audiencia')) {
       typeSelect.value = 'Audiencia';
-    } else if (prefilledTitle.toLowerCase().includes('recurso') || prefilledTitle.toLowerCase().includes('acusación')) {
+    } else if (prefilledTitle.toLowerCase().includes('recurso') || prefilledTitle.toLowerCase().includes('acusaciÃ³n')) {
       typeSelect.value = 'Plazo Legal';
     }
   }
@@ -2335,7 +2335,7 @@ function renderCalendar() {
   document.getElementById('calendar-title-label').innerText = `${months[curMonth]} ${curYear}`;
 
   // Calendar Header Days Name
-  const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+  const DAYS_OF_WEEK = ['Lunes', 'Martes', 'MiÃ©rcoles', 'Jueves', 'Viernes', 'SÃ¡bado', 'Domingo'];
   DAYS_OF_WEEK.forEach(day => {
     const label = document.createElement('div');
     label.className = 'calendar-day-name';
@@ -2434,7 +2434,7 @@ function viewReminderDetails(reminderId) {
   const confirmDelete = confirm(`
 RECORDATORIO / HITO PROCESAL
 ---------------------------------
-Título: ${rem.titulo}
+TÃ­tulo: ${rem.titulo}
 Tipo: ${rem.tipo}
 Fecha: ${dateFormatted}
 Causa: ${caseText}
@@ -2442,7 +2442,7 @@ Causa: ${caseText}
 Detalle: ${rem.descripcion || 'Sin observaciones.'}
 
 ---------------------------------
-¿Deseas eliminar este hito permanentemente?
+Â¿Deseas eliminar este hito permanentemente?
 `);
 
   if (confirmDelete) {
@@ -2556,7 +2556,7 @@ function renderDashboardLists() {
       <div class="empty-state">
         <i class="fa-solid fa-calendar-check"></i>
         <h3>Sin eventos programados</h3>
-        <p>No hay audiencias ni hito judicial registrado próximamente.</p>
+        <p>No hay audiencias ni hito judicial registrado prÃ³ximamente.</p>
       </div>
     `;
   } else {
@@ -2639,8 +2639,8 @@ function renderDashboardLists() {
     paymentsContainer.innerHTML = `
       <div class="empty-state">
         <i class="fa-solid fa-circle-check"></i>
-        <h3>Finanzas al día</h3>
-        <p>Todos los honorarios están al día y sin atrasos.</p>
+        <h3>Finanzas al dÃ­a</h3>
+        <p>Todos los honorarios estÃ¡n al dÃ­a y sin atrasos.</p>
       </div>
     `;
   } else {
@@ -2710,11 +2710,11 @@ function setupSettingsAndSearch() {
         
         // Basic signature validation
         if (!backupData.clients || !backupData.cases || !backupData.payments) {
-          alert('El archivo no parece ser un respaldo válido de la aplicación.');
+          alert('El archivo no parece ser un respaldo vÃ¡lido de la aplicaciÃ³n.');
           return;
         }
 
-        const confirmImport = confirm('ATENCIÓN: Importar este respaldo reemplazará TODA la información local actual. ¿Deseas continuar?');
+        const confirmImport = confirm('ATENCIÃ“N: Importar este respaldo reemplazarÃ¡ TODA la informaciÃ³n local actual. Â¿Deseas continuar?');
         if (confirmImport) {
           await DB.importBackup(backupData);
           await refreshStateData();
@@ -2724,7 +2724,7 @@ function setupSettingsAndSearch() {
         }
       } catch (err) {
         console.error(err);
-        alert('Error al leer el archivo de respaldo. Asegúrate que sea un JSON válido.');
+        alert('Error al leer el archivo de respaldo. AsegÃºrate que sea un JSON vÃ¡lido.');
       }
     };
     reader.readAsText(file);
@@ -2775,7 +2775,7 @@ function renderFilteredClientsTable(list) {
   tbody.innerHTML = '';
 
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Sin resultados de búsqueda.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Sin resultados de bÃºsqueda.</td></tr>`;
     return;
   }
 
@@ -2786,8 +2786,8 @@ function renderFilteredClientsTable(list) {
       <td style="font-weight: 600;">${client.rut}</td>
       <td style="font-family: var(--font-title); font-weight: 500;">${client.nombre}</td>
       <td>
-        <div style="font-size: 13px;"><i class="fa-solid fa-phone"></i> ${client.telefono || '—'}</div>
-        <div style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-envelope"></i> ${client.email || '—'}</div>
+        <div style="font-size: 13px;"><i class="fa-solid fa-phone"></i> ${client.telefono || 'â€”'}</div>
+        <div style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-envelope"></i> ${client.email || 'â€”'}</div>
       </td>
       <td style="font-size: 13px;">${client.fechaRegistro}</td>
       <td><span class="badge ${statusClass}">${client.estado}</span></td>
@@ -2807,7 +2807,7 @@ function renderFilteredCasesTable(list) {
   tbody.innerHTML = '';
 
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Sin resultados de búsqueda.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Sin resultados de bÃºsqueda.</td></tr>`;
     return;
   }
 
@@ -2815,7 +2815,7 @@ function renderFilteredCasesTable(list) {
     const tr = document.createElement('tr');
     const client = State.activeClients.find(c => c.id === kase.clientId);
     const clientName = client ? client.nombre : 'Cliente Desconocido';
-    let statusClass = kase.status === 'Juicio Oral' ? 'badge-error' : (kase.status === 'Apelación' ? 'badge-warning' : (kase.status === 'Cerrado' ? 'badge-success' : 'badge-primary'));
+    let statusClass = kase.status === 'Juicio Oral' ? 'badge-error' : (kase.status === 'ApelaciÃ³n' ? 'badge-warning' : (kase.status === 'Cerrado' ? 'badge-success' : 'badge-primary'));
     const driveUI = kase.driveLink 
       ? `<a href="${kase.driveLink}" target="_blank" class="drive-link-badge"><i class="fa-brands fa-google-drive"></i> Ir a Drive</a>`
       : `<span style="color: var(--text-dark); font-size: 12px;"><i class="fa-solid fa-link-slash"></i> Sin Link</span>`;
@@ -2843,7 +2843,7 @@ function renderFilteredPaymentsTable(list) {
   tbody.innerHTML = '';
 
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Sin resultados de búsqueda.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Sin resultados de bÃºsqueda.</td></tr>`;
     return;
   }
 
@@ -2863,7 +2863,7 @@ function renderFilteredPaymentsTable(list) {
       }
     });
 
-    let statusUI = `<span class="badge badge-success">Al día</span>`;
+    let statusUI = `<span class="badge badge-success">Al dÃ­a</span>`;
     if (plan.cuotasPagas === plan.cuotasTotales) {
       statusUI = `<span class="badge badge-primary">Totalmente Pagado</span>`;
     } else if (hasOverdue) {
@@ -2889,7 +2889,7 @@ function renderFilteredPaymentsTable(list) {
 
 // ================= DATE FORMATTING UTILITIES =================
 function formatDate(dateStr) {
-  if (!dateStr) return '—';
+  if (!dateStr) return 'â€”';
   // dateStr is YYYY-MM-DD
   const parts = dateStr.split('-');
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
@@ -2934,7 +2934,7 @@ function setupGoogleDriveAPI() {
       // Save config to Firestore to share across devices
       await saveGoogleConfigToFirestore();
 
-      alert('Configuración de Google Drive guardada correctamente.');
+      alert('ConfiguraciÃ³n de Google Drive guardada correctamente.');
     });
   }
 
@@ -2944,7 +2944,7 @@ function setupGoogleDriveAPI() {
     testBtn.addEventListener('click', () => {
       const clientId = inputClientId.value.trim();
       if (!clientId) {
-        alert('Por favor ingresa un Client ID para probar la conexión.');
+        alert('Por favor ingresa un Client ID para probar la conexiÃ³n.');
         return;
       }
       
@@ -2953,7 +2953,7 @@ function setupGoogleDriveAPI() {
       State.googleDrive.tokenClient = null;
 
       getGoogleAccessToken(() => {
-        alert('¡Conexión verificada con éxito! Has iniciado sesión en Google correctamente.');
+        alert('Â¡ConexiÃ³n verificada con Ã©xito! Has iniciado sesiÃ³n en Google correctamente.');
       });
     });
   }
@@ -3018,7 +3018,7 @@ async function saveGoogleConfigToFirestore() {
       updatedAt: Date.now()
     }, { merge: true });
   } catch (err) {
-    console.error("Error al guardar configuración de Google en Firestore:", err);
+    console.error("Error al guardar configuraciÃ³n de Google en Firestore:", err);
   }
 }
 
@@ -3031,7 +3031,7 @@ async function loadGoogleConfigFromFirestore() {
       return configSnap.data();
     }
   } catch (err) {
-    console.error("Error al cargar configuración de Google desde Firestore:", err);
+    console.error("Error al cargar configuraciÃ³n de Google desde Firestore:", err);
   }
   return null;
 }
@@ -3062,7 +3062,7 @@ async function loadSharedGoogleConfig() {
 
 function initTokenClient() {
   if (!State.googleDrive.clientId) {
-    alert('Por favor configura el Google Client ID en la pestaña de Configuración.');
+    alert('Por favor configura el Google Client ID en la pestaÃ±a de ConfiguraciÃ³n.');
     return null;
   }
   
@@ -3071,7 +3071,7 @@ function initTokenClient() {
   }
 
   if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
-    alert('Las librerías de Google no se han cargado aún. Por favor, asegúrate de tener conexión a Internet y recarga la página.');
+    alert('Las librerÃ­as de Google no se han cargado aÃºn. Por favor, asegÃºrate de tener conexiÃ³n a Internet y recarga la pÃ¡gina.');
     return null;
   }
 
@@ -3080,8 +3080,8 @@ function initTokenClient() {
     scope: 'https://www.googleapis.com/auth/drive.file',
     callback: async (tokenResponse) => {
       if (tokenResponse.error) {
-        console.error('Error de autenticación Google:', tokenResponse.error);
-        alert('Error de autenticación con Google: ' + tokenResponse.error);
+        console.error('Error de autenticaciÃ³n Google:', tokenResponse.error);
+        alert('Error de autenticaciÃ³n con Google: ' + tokenResponse.error);
         return;
       }
       
@@ -3217,7 +3217,7 @@ async function shareDriveFileOrFolder(fileId) {
   });
 
   if (!response.ok) {
-    console.warn('No se pudieron establecer los permisos públicos del archivo.');
+    console.warn('No se pudieron establecer los permisos pÃºblicos del archivo.');
   }
 }
 
@@ -3377,7 +3377,7 @@ async function openCaseFilesModal(caseId) {
 
   // Check config
   if (!State.googleDrive.clientId || !State.googleDrive.rootFolderId) {
-    alert('Debes configurar las credenciales de Google Drive (Client ID y Carpeta Raíz) en la pestaña de Configuración.');
+    alert('Debes configurar las credenciales de Google Drive (Client ID y Carpeta RaÃ­z) en la pestaÃ±a de ConfiguraciÃ³n.');
     renderView('settings');
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     document.getElementById('nav-settings-li').classList.add('active');
@@ -3436,7 +3436,7 @@ async function openCaseFilesModal(caseId) {
         document.getElementById('drive-files-list').innerHTML = `
           <div class="empty-state">
             <i class="fa-solid fa-triangle-exclamation" style="color: var(--error);"></i>
-            <h3>Error de sincronización</h3>
+            <h3>Error de sincronizaciÃ³n</h3>
             <p>${err.message || 'No se pudieron recuperar los archivos de Google Drive.'}</p>
           </div>
         `;
@@ -3486,8 +3486,8 @@ function renderDriveFiles(files) {
     container.innerHTML = `
       <div class="empty-state" style="padding: 30px 10px;">
         <i class="fa-solid fa-file-circle-minus" style="font-size: 32px;"></i>
-        <h3 style="font-size: 15px;">Expediente vacío</h3>
-        <p style="font-size: 12px;">No se han subido documentos a esta causa todavía.</p>
+        <h3 style="font-size: 15px;">Expediente vacÃ­o</h3>
+        <p style="font-size: 12px;">No se han subido documentos a esta causa todavÃ­a.</p>
       </div>
     `;
     return;
@@ -3514,7 +3514,7 @@ function renderDriveFiles(files) {
       iconColor = '#10b981';
     }
 
-    let sizeText = '—';
+    let sizeText = 'â€”';
     if (file.size) {
       const kbs = Math.round(Number(file.size) / 1024);
       sizeText = kbs >= 1024 
@@ -3524,7 +3524,7 @@ function renderDriveFiles(files) {
 
     const createdDate = file.createdTime 
       ? new Date(file.createdTime).toLocaleDateString('es-CL') 
-      : '—';
+      : 'â€”';
 
     item.innerHTML = `
       <div class="drive-file-details">
@@ -3552,7 +3552,7 @@ function renderDriveFiles(files) {
       const fileId = e.currentTarget.getAttribute('data-id');
       const fileName = e.currentTarget.getAttribute('data-name');
       
-      const confirmDelete = confirm(`¿Estás seguro de que deseas eliminar permanentemente el archivo "${fileName}" de Google Drive?`);
+      const confirmDelete = confirm(`Â¿EstÃ¡s seguro de que deseas eliminar permanentemente el archivo "${fileName}" de Google Drive?`);
       if (confirmDelete) {
         try {
           e.currentTarget.disabled = true;
@@ -3631,7 +3631,7 @@ async function handleDriveFilesUpload(files) {
     const file = files[i];
 
     if (file.size > 15 * 1024 * 1024) {
-      alert(`El archivo "${file.name}" supera el límite de 15 MB y no será subido.`);
+      alert(`El archivo "${file.name}" supera el lÃ­mite de 15 MB y no serÃ¡ subido.`);
       continue;
     }
 
@@ -3650,7 +3650,7 @@ async function handleDriveFilesUpload(files) {
 
     } catch (err) {
       console.error('Error al subir archivo:', err);
-      alert(`Ocurrió un error al subir el archivo "${file.name}": ${err.message}`);
+      alert(`OcurriÃ³ un error al subir el archivo "${file.name}": ${err.message}`);
     }
   }
 
@@ -3668,8 +3668,8 @@ async function openClientSummaryModal(clientId) {
   // Set basic info
   document.getElementById('client-summary-name').innerText = `Ficha de Cliente: ${client.nombre}`;
   document.getElementById('client-summary-rut').innerText = `RUT / ID: ${client.rut}`;
-  document.getElementById('client-summary-phone').innerText = client.telefono || '—';
-  document.getElementById('client-summary-email').innerText = client.email || '—';
+  document.getElementById('client-summary-phone').innerText = client.telefono || 'â€”';
+  document.getElementById('client-summary-email').innerText = client.email || 'â€”';
   document.getElementById('client-summary-date').innerText = `Ingreso: ${client.fechaRegistro}`;
   
   // Set badge status
@@ -3826,7 +3826,7 @@ async function openCaseSummaryModal(caseId) {
 
   // Set basic info
   document.getElementById('case-summary-rit').innerText = `Causa RIT: ${kase.rit}`;
-  document.getElementById('case-summary-client').innerText = `Cliente: ${clientName} (${client ? client.rut : '—'})`;
+  document.getElementById('case-summary-client').innerText = `Cliente: ${clientName} (${client ? client.rut : 'â€”'})`;
   document.getElementById('case-summary-court').innerText = kase.court;
   document.getElementById('case-summary-crime').innerText = kase.crime;
   
@@ -3836,7 +3836,7 @@ async function openCaseSummaryModal(caseId) {
   badge.className = 'badge';
   if (kase.status === 'Cerrado') badge.classList.add('badge-success');
   else if (kase.status === 'Juicio Oral') badge.classList.add('badge-error');
-  else if (kase.status === 'Apelación') badge.classList.add('badge-warning');
+  else if (kase.status === 'ApelaciÃ³n') badge.classList.add('badge-warning');
   else badge.classList.add('badge-primary');
 
   // Drive link UI
@@ -4030,6 +4030,3 @@ async function openCaseSummaryModal(caseId) {
 
   showModal('modal-case-summary');
 }
-
- / /   t r i g g e r   r e b u i l d  
- 
