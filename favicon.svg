@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="16" fill="#0f172a"/>
+  
+  <!-- Outer Gold Laurel Border / Emblem Glow -->
+  <circle cx="32" cy="32" r="24" fill="none" stroke="#b45309" stroke-width="1.5" stroke-dasharray="4,2"/>
+  
+  <!-- Scales of Justice Central Pillar -->
+  <line x1="32" y1="14" x2="32" y2="46" stroke="#fbbf24" stroke-width="3" stroke-linecap="round"/>
+  <!-- Top Finial -->
+  <circle cx="32" cy="14" r="3" fill="#fef08a"/>
+  <!-- Base Stand -->
+  <path d="M 22 46 L 42 46" stroke="#fbbf24" stroke-width="3" stroke-linecap="round"/>
+  <path d="M 26 43 L 38 43" stroke="#d97706" stroke-width="2"/>
+  
+  <!-- Horizontal Beam -->
+  <line x1="16" y1="22" x2="48" y2="22" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round"/>
+  
+  <!-- Left Scale Pan -->
+  <line x1="16" y1="22" x2="11" y2="34" stroke="#d97706" stroke-width="1.5"/>
+  <line x1="16" y1="22" x2="21" y2="34" stroke="#d97706" stroke-width="1.5"/>
+  <path d="M 10 34 Q 16 40 22 34 Z" fill="#fbbf24" stroke="#d97706" stroke-width="1"/>
+  
+  <!-- Right Scale Pan -->
+  <line x1="48" y1="22" x2="43" y2="34" stroke="#d97706" stroke-width="1.5"/>
+  <line x1="48" y1="22" x2="53" y2="34" stroke="#d97706" stroke-width="1.5"/>
+  <path d="M 42 34 Q 48 40 54 34 Z" fill="#fbbf24" stroke="#d97706" stroke-width="1"/>
+</svg>
