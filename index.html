@@ -10,7 +10,7 @@
   <!-- FontAwesome for Premium Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- Vanilla CSS Style -->
-  <link rel="stylesheet" href="styles.css?v=5">
+  <link rel="stylesheet" href="styles.css?v=6">
   <!-- Google API Client and Google Identity Services for direct Drive Integration -->
   <script src="https://apis.google.com/js/api.js" async defer></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -235,12 +235,12 @@
           <table id="table-clients">
             <thead>
               <tr>
-                <th>RUT / ID</th>
+                <th style="width: 125px; white-space: nowrap;">RUT / ID</th>
                 <th>Nombre Completo</th>
-                <th>Contacto</th>
-                <th>Fecha Ingreso</th>
-                <th>Estado</th>
-                <th style="width: 200px;">Acciones</th>
+                <th style="width: 180px;">Contacto</th>
+                <th style="width: 110px; text-align: center; white-space: nowrap;">Fecha Ingreso</th>
+                <th style="width: 95px; text-align: center;">Estado</th>
+                <th style="width: 260px; text-align: right; white-space: nowrap;">Acciones</th>
               </tr>
             </thead>
             <tbody id="table-clients-body">
@@ -280,7 +280,7 @@
                 <th>Delito / Materia</th>
                 <th>Google Drive</th>
                 <th>Estado Juicio</th>
-                <th style="width: 280px;">Acciones</th>
+                <th style="width: 280px; text-align: right;">Acciones</th>
               </tr>
             </thead>
             <tbody id="table-cases-body">

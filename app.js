@@ -1147,21 +1147,21 @@ function renderClientsTable() {
       : '';
 
     tr.innerHTML = `
-      <td style="font-weight: 600;">${client.rut}</td>
+      <td style="font-weight: 600; white-space: nowrap;">${client.rut}</td>
       <td style="font-family: var(--font-title); font-weight: 500;">
-        ${client.nombre}
+        <div>${client.nombre}</div>
         ${driveBadge ? `<div style="margin-top: 2px;">${driveBadge}</div>` : ''}
       </td>
       <td>
-        <div style="font-size: 13px;"><i class="fa-solid fa-phone" style="font-size: 11px; color: var(--text-muted); margin-right: 4px;"></i> ${client.telefono || '—'}</div>
-        <div style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-envelope" style="font-size: 10px; margin-right: 4px;"></i> ${client.email || '—'}</div>
+        <div style="font-size: 12.5px; white-space: nowrap;"><i class="fa-solid fa-phone" style="font-size: 11px; color: var(--text-muted); margin-right: 4px;"></i> ${client.telefono || '—'}</div>
+        <div style="font-size: 11.5px; color: var(--text-muted); white-space: nowrap;"><i class="fa-solid fa-envelope" style="font-size: 10px; margin-right: 4px;"></i> ${client.email || '—'}</div>
       </td>
-      <td style="font-size: 13px;">${client.fechaRegistro}</td>
-      <td><span class="badge ${statusClass}">${client.estado}</span></td>
-      <td>
-        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+      <td style="font-size: 12.5px; text-align: center; white-space: nowrap; color: var(--text-muted);">${client.fechaRegistro}</td>
+      <td style="text-align: center;"><span class="badge ${statusClass}">${client.estado}</span></td>
+      <td style="text-align: right;">
+        <div class="table-actions" style="justify-content: flex-end;">
           <button class="btn btn-primary btn-sm view-client-summary-btn" data-id="${client.id}" title="Ficha / Resumen del Cliente"><i class="fa-solid fa-address-card"></i> Ficha</button>
-          <button class="btn btn-primary btn-sm view-client-files-btn" data-id="${client.id}" title="Archivos Generales del Cliente"><i class="fa-solid fa-folder-open"></i> Archivos</button>
+          <button class="btn btn-secondary btn-sm view-client-files-btn" data-id="${client.id}" title="Archivos Generales del Cliente"><i class="fa-solid fa-folder-open"></i> Archivos</button>
           <button class="btn btn-secondary btn-sm edit-client-btn" data-id="${client.id}" title="Editar"><i class="fa-solid fa-pen"></i></button>
           <button class="btn btn-danger btn-sm delete-client-btn" data-id="${client.id}" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
         </div>
@@ -1445,8 +1445,8 @@ function renderCasesTable() {
       </td>
       <td>${driveUI}</td>
       <td><span class="badge ${statusClass}">${kase.status}</span></td>
-      <td>
-        <div style="display: flex; gap: 8px;">
+      <td style="text-align: right;">
+        <div class="table-actions" style="justify-content: flex-end;">
           <button class="btn btn-primary btn-sm view-files-btn" data-id="${kase.id}" title="Expediente Digital"><i class="fa-solid fa-folder-open"></i> Expediente</button>
           <button class="btn btn-secondary btn-sm view-case-summary-btn" data-id="${kase.id}" title="Ficha / Resumen Causa"><i class="fa-solid fa-circle-info"></i></button>
           <button class="btn btn-secondary btn-sm add-reminder-case-btn" data-id="${kase.id}" title="Programar Audiencia / Hito"><i class="fa-solid fa-calendar-plus"></i></button>
@@ -2990,21 +2990,21 @@ function renderFilteredClientsTable(list) {
       : '';
 
     tr.innerHTML = `
-      <td style="font-weight: 600;">${client.rut}</td>
+      <td style="font-weight: 600; white-space: nowrap;">${client.rut}</td>
       <td style="font-family: var(--font-title); font-weight: 500;">
-        ${client.nombre}
+        <div>${client.nombre}</div>
         ${driveBadge ? `<div style="margin-top: 2px;">${driveBadge}</div>` : ''}
       </td>
       <td>
-        <div style="font-size: 13px;"><i class="fa-solid fa-phone" style="font-size: 11px; color: var(--text-muted); margin-right: 4px;"></i> ${client.telefono || '—'}</div>
-        <div style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-envelope" style="font-size: 10px; margin-right: 4px;"></i> ${client.email || '—'}</div>
+        <div style="font-size: 12.5px; white-space: nowrap;"><i class="fa-solid fa-phone" style="font-size: 11px; color: var(--text-muted); margin-right: 4px;"></i> ${client.telefono || '—'}</div>
+        <div style="font-size: 11.5px; color: var(--text-muted); white-space: nowrap;"><i class="fa-solid fa-envelope" style="font-size: 10px; margin-right: 4px;"></i> ${client.email || '—'}</div>
       </td>
-      <td style="font-size: 13px;">${client.fechaRegistro}</td>
-      <td><span class="badge ${statusClass}">${client.estado}</span></td>
-      <td>
-        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+      <td style="font-size: 12.5px; text-align: center; white-space: nowrap; color: var(--text-muted);">${client.fechaRegistro}</td>
+      <td style="text-align: center;"><span class="badge ${statusClass}">${client.estado}</span></td>
+      <td style="text-align: right;">
+        <div class="table-actions" style="justify-content: flex-end;">
           <button class="btn btn-primary btn-sm view-client-summary-btn" data-id="${client.id}" title="Ficha / Resumen del Cliente"><i class="fa-solid fa-address-card"></i> Ficha</button>
-          <button class="btn btn-primary btn-sm view-client-files-btn" data-id="${client.id}" title="Archivos Generales del Cliente"><i class="fa-solid fa-folder-open"></i> Archivos</button>
+          <button class="btn btn-secondary btn-sm view-client-files-btn" data-id="${client.id}" title="Archivos Generales del Cliente"><i class="fa-solid fa-folder-open"></i> Archivos</button>
           <button class="btn btn-secondary btn-sm edit-client-btn" data-id="${client.id}" title="Editar"><i class="fa-solid fa-pen"></i></button>
           <button class="btn btn-danger btn-sm delete-client-btn" data-id="${client.id}" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
         </div>
