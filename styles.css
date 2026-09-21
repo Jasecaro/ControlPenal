@@ -508,6 +508,7 @@ tr:hover td {
 .badge-warning { background-color: var(--warning-glow); color: var(--warning); }
 .badge-error { background-color: var(--error-glow); color: var(--error); }
 .badge-primary { background-color: var(--primary-glow); color: var(--primary); }
+.badge-info { background-color: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25); }
 
 /* Form layouts */
 .form-group {
@@ -993,6 +994,45 @@ tr:hover td {
 .drive-file-actions {
   display: flex;
   gap: 8px;
+}
+
+/* Drive Files Navigation Tabs */
+.drive-files-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.drive-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  background-color: rgba(30, 41, 59, 0.4);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+}
+
+.drive-tab-btn:hover {
+  background-color: rgba(30, 41, 59, 0.8);
+  color: var(--text-main);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.drive-tab-btn.active {
+  background-color: var(--primary-glow);
+  color: #60a5fa;
+  border-color: var(--primary);
+  font-weight: 600;
 }
 
 /* Tabs for Reminder Modal */

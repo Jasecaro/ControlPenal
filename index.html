@@ -221,6 +221,7 @@
               <label for="filter-clients-status" style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Filtrar:</label>
               <select id="filter-clients-status" style="padding: 6px 12px; font-size: 13px; font-family: var(--font-body); background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; outline: none;">
                 <option value="active">Clientes Activos</option>
+                <option value="waiting">Clientes en Espera</option>
                 <option value="finished">Finalizados / Inactivos</option>
                 <option value="all">Todos los Clientes</option>
               </select>
@@ -482,6 +483,7 @@
           <label for="client-status">Estado del Cliente</label>
           <select id="client-status">
             <option value="Activo">Activo (Con juicio vigente o contrato activo)</option>
+            <option value="En espera">Cliente en espera (Tratativas / Documentación pendiente)</option>
             <option value="Suspendido">Suspendido (Pagos atrasados o pausa)</option>
             <option value="Finalizado">Finalizado (Causa cerrada)</option>
           </select>
@@ -792,6 +794,11 @@
         <button class="modal-close" id="btn-close-case-files-modal">&times;</button>
       </div>
 
+      <!-- Tab Navigation Switcher between Case Files and Client Files -->
+      <div id="drive-files-nav-tabs" class="drive-files-tabs" style="display: none;">
+        <!-- Dynamically rendered tabs (e.g. Causa RIT vs Documentos del Cliente) -->
+      </div>
+
       <!-- Google Drive Auth Indicator / Login Section -->
       <div id="drive-auth-warning" style="display: none; background-color: rgba(245, 158, 11, 0.05); border: 1px solid var(--warning); border-radius: var(--radius-md); padding: 20px; margin-bottom: 20px; text-align: center; flex-direction: column; align-items: center; gap: 8px;">
         <i class="fa-brands fa-google-drive" style="font-size: 32px; color: var(--accent); margin-bottom: 4px;"></i>
@@ -806,7 +813,12 @@
       <div id="drive-files-body" style="display: flex; flex-direction: column; gap: 16px;">
         <!-- List of existing files in Google Drive -->
         <div>
-          <h4 style="font-size: 14px; font-family: var(--font-title); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-folder-open" style="color: var(--primary);"></i> Documentos en Drive</h4>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h4 style="font-size: 14px; font-family: var(--font-title); margin: 0; display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-folder-open" style="color: var(--primary);"></i> <span id="drive-files-list-heading">Documentos en Drive</span></h4>
+            <a id="drive-open-folder-external-btn" href="#" target="_blank" class="btn btn-secondary btn-sm" style="display: none; font-size: 11px; padding: 4px 10px; gap: 5px;" title="Abrir esta carpeta en Google Drive">
+              <i class="fa-brands fa-google-drive" style="color: #10b981;"></i> Abrir carpeta en Drive
+            </a>
+          </div>
           <div id="drive-files-list" style="max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background-color: rgba(15, 23, 42, 0.2);">
             <!-- Dynamic items or empty state -->
           </div>
@@ -879,6 +891,22 @@
           <h4 style="font-size: 14px; font-family: var(--font-title); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-briefcase" style="color: var(--primary);"></i> Causas y Juicios Vinculados</h4>
           <div id="client-summary-cases-list" style="display: flex; flex-direction: column; gap: 10px;">
             <!-- Dynamic cases list -->
+          </div>
+        </div>
+
+        <!-- Tab 1.5: Documentos Generales del Cliente -->
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h4 style="font-size: 14px; font-family: var(--font-title); margin: 0; display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-folder-open" style="color: #38bdf8;"></i> Documentos Generales del Cliente</h4>
+            <button type="button" class="btn btn-primary btn-sm" id="btn-client-summary-open-files" style="font-size: 12px; padding: 5px 12px; gap: 6px;">
+              <i class="fa-solid fa-folder-open"></i> Ver / Subir Archivos
+            </button>
+          </div>
+          <div id="client-summary-files-info" style="background-color: rgba(15, 23, 42, 0.2); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; font-size: 12px; color: var(--text-muted); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+            <span id="client-summary-files-desc">Archivos del cliente (cédula de identidad, poderes, certificados aplicables a todas sus causas).</span>
+            <a id="client-summary-drive-link" href="#" target="_blank" class="drive-link-badge" style="display: none;">
+              <i class="fa-brands fa-google-drive"></i> Ir a Drive
+            </a>
           </div>
         </div>
 

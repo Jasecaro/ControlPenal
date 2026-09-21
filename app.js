@@ -56,6 +56,7 @@ const State = {
     tokenClient: null,
   },
   currentFilesCaseId: null, // Track which case is open in the files modal
+  currentFilesClientId: null, // Track which client is open in the files modal
 };
 
 function getHitosProcedimiento(area = null) {
@@ -1083,6 +1084,7 @@ function setupClientsCRUD() {
         clientData.id = Number(id);
         const oldClient = State.activeClients.find(c => c.id === clientData.id);
         clientData.fechaRegistro = oldClient ? oldClient.fechaRegistro : new Date().toLocaleDateString();
+        if (oldClient && oldClient.driveLink) clientData.driveLink = oldClient.driveLink;
         await DB.update('clients', clientData);
       } else {
         // Insert new
@@ -1115,6 +1117,7 @@ function renderClientsTable() {
 
   const filteredClients = State.activeClients.filter(client => {
     if (filterVal === 'active') return client.estado === 'Activo';
+    if (filterVal === 'waiting') return client.estado === 'En espera' || client.estado === 'Cliente en espera';
     if (filterVal === 'finished') return client.estado === 'Finalizado' || client.estado === 'Suspendido' || client.estado === 'Inactivo';
     return true; // 'all'
   });
@@ -1135,21 +1138,30 @@ function renderClientsTable() {
     const tr = document.createElement('tr');
     
     let statusClass = 'badge-success';
-    if (client.estado === 'Suspendido') statusClass = 'badge-warning';
-    if (client.estado === 'Finalizado') statusClass = 'badge-primary';
+    if (client.estado === 'En espera' || client.estado === 'Cliente en espera') statusClass = 'badge-info';
+    else if (client.estado === 'Suspendido') statusClass = 'badge-warning';
+    else if (client.estado === 'Finalizado' || client.estado === 'Inactivo') statusClass = 'badge-primary';
+
+    const driveBadge = client.driveLink 
+      ? `<a href="${client.driveLink}" target="_blank" class="drive-link-badge" title="Abrir carpeta en Google Drive" style="padding: 2px 8px; font-size: 11px; margin-top: 4px; display: inline-flex;"><i class="fa-brands fa-google-drive"></i> Drive</a>` 
+      : '';
 
     tr.innerHTML = `
       <td style="font-weight: 600;">${client.rut}</td>
-      <td style="font-family: var(--font-title); font-weight: 500;">${client.nombre}</td>
+      <td style="font-family: var(--font-title); font-weight: 500;">
+        ${client.nombre}
+        ${driveBadge ? `<div style="margin-top: 2px;">${driveBadge}</div>` : ''}
+      </td>
       <td>
-        <div style="font-size: 13px;"><i class="fa-solid fa-phone" style="font-size: 11px; color: var(--text-muted); margin-right: 4px;"></i> ${client.telefono || 'â€”'}</div>
-        <div style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-envelope" style="font-size: 10px; margin-right: 4px;"></i> ${client.email || 'â€”'}</div>
+        <div style="font-size: 13px;"><i class="fa-solid fa-phone" style="font-size: 11px; color: var(--text-muted); margin-right: 4px;"></i> ${client.telefono || '—'}</div>
+        <div style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-envelope" style="font-size: 10px; margin-right: 4px;"></i> ${client.email || '—'}</div>
       </td>
       <td style="font-size: 13px;">${client.fechaRegistro}</td>
       <td><span class="badge ${statusClass}">${client.estado}</span></td>
       <td>
-        <div style="display: flex; gap: 8px;">
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
           <button class="btn btn-primary btn-sm view-client-summary-btn" data-id="${client.id}" title="Ficha / Resumen del Cliente"><i class="fa-solid fa-address-card"></i> Ficha</button>
+          <button class="btn btn-primary btn-sm view-client-files-btn" data-id="${client.id}" title="Archivos Generales del Cliente"><i class="fa-solid fa-folder-open"></i> Archivos</button>
           <button class="btn btn-secondary btn-sm edit-client-btn" data-id="${client.id}" title="Editar"><i class="fa-solid fa-pen"></i></button>
           <button class="btn btn-danger btn-sm delete-client-btn" data-id="${client.id}" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
         </div>
@@ -1163,6 +1175,13 @@ function renderClientsTable() {
     btn.addEventListener('click', (e) => {
       const id = Number(e.currentTarget.getAttribute('data-id'));
       openClientSummaryModal(id);
+    });
+  });
+
+  document.querySelectorAll('.view-client-files-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = Number(e.currentTarget.getAttribute('data-id'));
+      openClientFilesModal(id);
     });
   });
 
@@ -2955,30 +2974,71 @@ function renderFilteredClientsTable(list) {
   tbody.innerHTML = '';
 
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Sin resultados de búsqueda.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">Sin resultados de búsqueda.</td></tr>`;
     return;
   }
 
   list.forEach(client => {
     const tr = document.createElement('tr');
-    let statusClass = client.estado === 'Activo' ? 'badge-success' : (client.estado === 'Suspendido' ? 'badge-warning' : 'badge-primary');
+    let statusClass = 'badge-success';
+    if (client.estado === 'En espera' || client.estado === 'Cliente en espera') statusClass = 'badge-info';
+    else if (client.estado === 'Suspendido') statusClass = 'badge-warning';
+    else if (client.estado === 'Finalizado' || client.estado === 'Inactivo') statusClass = 'badge-primary';
+
+    const driveBadge = client.driveLink 
+      ? `<a href="${client.driveLink}" target="_blank" class="drive-link-badge" title="Abrir carpeta en Google Drive" style="padding: 2px 8px; font-size: 11px; margin-top: 4px; display: inline-flex;"><i class="fa-brands fa-google-drive"></i> Drive</a>` 
+      : '';
+
     tr.innerHTML = `
       <td style="font-weight: 600;">${client.rut}</td>
-      <td style="font-family: var(--font-title); font-weight: 500;">${client.nombre}</td>
+      <td style="font-family: var(--font-title); font-weight: 500;">
+        ${client.nombre}
+        ${driveBadge ? `<div style="margin-top: 2px;">${driveBadge}</div>` : ''}
+      </td>
       <td>
-        <div style="font-size: 13px;"><i class="fa-solid fa-phone"></i> ${client.telefono || 'â€”'}</div>
-        <div style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-envelope"></i> ${client.email || 'â€”'}</div>
+        <div style="font-size: 13px;"><i class="fa-solid fa-phone" style="font-size: 11px; color: var(--text-muted); margin-right: 4px;"></i> ${client.telefono || '—'}</div>
+        <div style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-envelope" style="font-size: 10px; margin-right: 4px;"></i> ${client.email || '—'}</div>
       </td>
       <td style="font-size: 13px;">${client.fechaRegistro}</td>
       <td><span class="badge ${statusClass}">${client.estado}</span></td>
       <td>
-        <div style="display: flex; gap: 8px;">
-          <button class="btn btn-secondary btn-sm edit-client-btn" data-id="${client.id}"><i class="fa-solid fa-pen"></i></button>
-          <button class="btn btn-danger btn-sm delete-client-btn" data-id="${client.id}"><i class="fa-solid fa-trash"></i></button>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <button class="btn btn-primary btn-sm view-client-summary-btn" data-id="${client.id}" title="Ficha / Resumen del Cliente"><i class="fa-solid fa-address-card"></i> Ficha</button>
+          <button class="btn btn-primary btn-sm view-client-files-btn" data-id="${client.id}" title="Archivos Generales del Cliente"><i class="fa-solid fa-folder-open"></i> Archivos</button>
+          <button class="btn btn-secondary btn-sm edit-client-btn" data-id="${client.id}" title="Editar"><i class="fa-solid fa-pen"></i></button>
+          <button class="btn btn-danger btn-sm delete-client-btn" data-id="${client.id}" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
         </div>
       </td>
     `;
     tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('.view-client-summary-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = Number(e.currentTarget.getAttribute('data-id'));
+      openClientSummaryModal(id);
+    });
+  });
+
+  tbody.querySelectorAll('.view-client-files-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = Number(e.currentTarget.getAttribute('data-id'));
+      openClientFilesModal(id);
+    });
+  });
+
+  tbody.querySelectorAll('.edit-client-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      editClient(id);
+    });
+  });
+
+  tbody.querySelectorAll('.delete-client-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      deleteClient(id);
+    });
   });
 }
 
@@ -3543,8 +3603,94 @@ async function deleteDriveFile(fileId) {
   }
 }
 
+function getCurrentFilesTarget() {
+  if (State.currentFilesCaseId) {
+    const kase = State.activeCases.find(c => c.id === State.currentFilesCaseId);
+    if (!kase) return null;
+    const client = State.activeClients.find(c => c.id === kase.clientId);
+    return {
+      type: 'case',
+      item: kase,
+      client: client,
+      folderId: extractFolderIdFromLink(kase.driveLink),
+      driveLink: kase.driveLink
+    };
+  } else if (State.currentFilesClientId) {
+    const client = State.activeClients.find(c => c.id === State.currentFilesClientId);
+    if (!client) return null;
+    return {
+      type: 'client',
+      item: client,
+      client: client,
+      folderId: extractFolderIdFromLink(client.driveLink),
+      driveLink: client.driveLink
+    };
+  }
+  return null;
+}
+
+function getCurrentFilesFolderId() {
+  const target = getCurrentFilesTarget();
+  return target ? target.folderId : null;
+}
+
+function renderDriveFilesNavTabs() {
+  const tabsContainer = document.getElementById('drive-files-nav-tabs');
+  if (!tabsContainer) return;
+  tabsContainer.innerHTML = '';
+
+  let client = null;
+
+  if (State.currentFilesCaseId) {
+    const currentCase = State.activeCases.find(c => c.id === State.currentFilesCaseId);
+    if (currentCase) {
+      client = State.activeClients.find(c => c.id === currentCase.clientId);
+    }
+  } else if (State.currentFilesClientId) {
+    client = State.activeClients.find(c => c.id === State.currentFilesClientId);
+  }
+
+  if (!client) {
+    tabsContainer.style.display = 'none';
+    return;
+  }
+
+  const clientCases = State.activeCases.filter(k => k.clientId === client.id);
+
+  tabsContainer.style.display = 'flex';
+
+  // 1. Tab Documentos Generales del Cliente
+  const isClientActive = !State.currentFilesCaseId && State.currentFilesClientId === client.id;
+  const clientTab = document.createElement('button');
+  clientTab.type = 'button';
+  clientTab.className = `drive-tab-btn ${isClientActive ? 'active' : ''}`;
+  clientTab.innerHTML = `<i class="fa-solid fa-folder-user"></i> Archivos del Cliente: ${client.nombre}`;
+  clientTab.title = 'Ver archivos y documentos generales de este cliente';
+  clientTab.addEventListener('click', () => {
+    if (isClientActive) return;
+    openClientFilesModal(client.id);
+  });
+  tabsContainer.appendChild(clientTab);
+
+  // 2. Tabs para cada Causa asociada a este cliente
+  clientCases.forEach(k => {
+    const isCaseActive = State.currentFilesCaseId === k.id;
+    const caseTab = document.createElement('button');
+    caseTab.type = 'button';
+    caseTab.className = `drive-tab-btn ${isCaseActive ? 'active' : ''}`;
+    caseTab.innerHTML = `<i class="fa-solid fa-briefcase"></i> Causa RIT: ${k.rit}`;
+    caseTab.title = `Expediente de la Causa RIT ${k.rit} (${k.court})`;
+    caseTab.addEventListener('click', () => {
+      if (isCaseActive) return;
+      openCaseFilesModal(k.id);
+    });
+    tabsContainer.appendChild(caseTab);
+  });
+}
+
 async function openCaseFilesModal(caseId) {
   State.currentFilesCaseId = caseId;
+  State.currentFilesClientId = null;
   const kase = State.activeCases.find(c => c.id === caseId);
   if (!kase) return;
 
@@ -3554,6 +3700,8 @@ async function openCaseFilesModal(caseId) {
   // Set modal header text
   document.getElementById('modal-case-files-title').innerText = `Expediente RIT: ${kase.rit}`;
   document.getElementById('modal-case-files-subtitle').innerText = `Cliente: ${clientName} | Tribunal: ${kase.court}`;
+  const listHeading = document.getElementById('drive-files-list-heading');
+  if (listHeading) listHeading.innerText = `Documentos de la Causa (${kase.rit})`;
 
   // Check config
   if (!State.googleDrive.clientId || !State.googleDrive.rootFolderId) {
@@ -3573,6 +3721,7 @@ async function openCaseFilesModal(caseId) {
     </div>
   `;
 
+  renderDriveFilesNavTabs();
   showModal('modal-case-files');
 
   // Verify auth and proceed to load files
@@ -3582,7 +3731,6 @@ async function openCaseFilesModal(caseId) {
       document.getElementById('drive-files-body').style.display = 'flex';
       
       let folderId = '';
-      
       if (kase.driveLink) {
         folderId = extractFolderIdFromLink(kase.driveLink);
       }
@@ -3604,9 +3752,104 @@ async function openCaseFilesModal(caseId) {
         renderCasesTable();
       }
 
+      const externalBtn = document.getElementById('drive-open-folder-external-btn');
+      if (externalBtn && kase.driveLink) {
+        externalBtn.href = kase.driveLink;
+        externalBtn.style.display = 'inline-flex';
+      }
+
       document.getElementById('modal-case-files-subtitle').innerText = `Sincronizado con Google Drive`;
+      renderDriveFilesNavTabs();
       await refreshDriveFilesList(folderId);
 
+    } catch (err) {
+      console.error(err);
+      if (err.message && (err.message.includes('unauthorized') || err.message.includes('Invalid Credentials') || err.message.includes('401'))) {
+        document.getElementById('drive-auth-warning').style.display = 'flex';
+        document.getElementById('drive-files-body').style.display = 'none';
+      } else {
+        document.getElementById('drive-files-list').innerHTML = `
+          <div class="empty-state">
+            <i class="fa-solid fa-triangle-exclamation" style="color: var(--error);"></i>
+            <h3>Error de sincronización</h3>
+            <p>${err.message || 'No se pudieron recuperar los archivos de Google Drive.'}</p>
+          </div>
+        `;
+      }
+    }
+  });
+}
+
+async function openClientFilesModal(clientId) {
+  State.currentFilesClientId = clientId;
+  State.currentFilesCaseId = null;
+
+  const client = State.activeClients.find(c => c.id === clientId);
+  if (!client) return;
+
+  // Set modal header text
+  document.getElementById('modal-case-files-title').innerText = `Documentos del Cliente: ${client.nombre}`;
+  document.getElementById('modal-case-files-subtitle').innerText = `RUT: ${client.rut} | Documentos Generales y Antecedentes`;
+  const listHeading = document.getElementById('drive-files-list-heading');
+  if (listHeading) listHeading.innerText = `Documentos Generales de ${client.nombre}`;
+
+  // Check config
+  if (!State.googleDrive.clientId || !State.googleDrive.rootFolderId) {
+    alert('Debes configurar las credenciales de Google Drive (Client ID y Carpeta Raíz) en la pestaña de Configuración.');
+    renderView('settings');
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    document.getElementById('nav-settings-li').classList.add('active');
+    return;
+  }
+
+  // Clear previous upload preview or progress
+  document.getElementById('drive-upload-progress-container').style.display = 'none';
+  document.getElementById('drive-files-list').innerHTML = `
+    <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+      <i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 8px;"></i>
+      <p>Cargando documentos del cliente...</p>
+    </div>
+  `;
+
+  renderDriveFilesNavTabs();
+  showModal('modal-case-files');
+
+  // Verify auth and proceed to load files
+  getGoogleAccessToken(async () => {
+    try {
+      document.getElementById('drive-auth-warning').style.display = 'none';
+      document.getElementById('drive-files-body').style.display = 'flex';
+
+      let folderId = '';
+      if (client.driveLink) {
+        folderId = extractFolderIdFromLink(client.driveLink);
+      }
+
+      if (!folderId) {
+        document.getElementById('modal-case-files-subtitle').innerText = `Creando carpeta en Google Drive para el cliente...`;
+        const folderName = `CLIENTE - ${client.nombre} (${client.rut})`;
+        const driveFolder = await createDriveFolder(folderName, State.googleDrive.rootFolderId);
+        folderId = driveFolder.id;
+
+        // Share folder publicly
+        await shareDriveFileOrFolder(folderId);
+
+        // Update database driveLink field
+        client.driveLink = `https://drive.google.com/drive/folders/${folderId}`;
+        await DB.update('clients', client);
+        await refreshStateData();
+        renderClientsTable();
+      }
+
+      const externalBtn = document.getElementById('drive-open-folder-external-btn');
+      if (externalBtn && client.driveLink) {
+        externalBtn.href = client.driveLink;
+        externalBtn.style.display = 'inline-flex';
+      }
+
+      document.getElementById('modal-case-files-subtitle').innerText = `Sincronizado con Google Drive (${client.rut})`;
+      renderDriveFilesNavTabs();
+      await refreshDriveFilesList(folderId);
     } catch (err) {
       console.error(err);
       if (err.message && (err.message.includes('unauthorized') || err.message.includes('Invalid Credentials') || err.message.includes('401'))) {
@@ -3663,11 +3906,12 @@ function renderDriveFiles(files) {
   container.innerHTML = '';
 
   if (files.length === 0) {
+    const isCase = Boolean(State.currentFilesCaseId);
     container.innerHTML = `
       <div class="empty-state" style="padding: 30px 10px;">
         <i class="fa-solid fa-file-circle-minus" style="font-size: 32px;"></i>
-        <h3 style="font-size: 15px;">Expediente vacío</h3>
-        <p style="font-size: 12px;">No se han subido documentos a esta causa todavía.</p>
+        <h3 style="font-size: 15px;">Carpeta vacía</h3>
+        <p style="font-size: 12px;">No se han subido documentos a este ${isCase ? 'expediente' : 'cliente'} todavía.</p>
       </div>
     `;
     return;
@@ -3694,7 +3938,7 @@ function renderDriveFiles(files) {
       iconColor = '#10b981';
     }
 
-    let sizeText = 'â€”';
+    let sizeText = '—';
     if (file.size) {
       const kbs = Math.round(Number(file.size) / 1024);
       sizeText = kbs >= 1024 
@@ -3704,7 +3948,7 @@ function renderDriveFiles(files) {
 
     const createdDate = file.createdTime 
       ? new Date(file.createdTime).toLocaleDateString('es-CL') 
-      : 'â€”';
+      : '—';
 
     item.innerHTML = `
       <div class="drive-file-details">
@@ -3740,10 +3984,10 @@ function renderDriveFiles(files) {
           
           await deleteDriveFile(fileId);
           
-          const kase = State.activeCases.find(c => c.id === State.currentFilesCaseId);
-          const folderId = extractFolderIdFromLink(kase.driveLink);
-          
-          await refreshDriveFilesList(folderId);
+          const folderId = getCurrentFilesFolderId();
+          if (folderId) {
+            await refreshDriveFilesList(folderId);
+          }
         } catch (err) {
           console.error(err);
           alert('Error al eliminar archivo: ' + err.message);
@@ -3793,12 +4037,9 @@ function setupDriveFileUploader() {
 }
 
 async function handleDriveFilesUpload(files) {
-  const kase = State.activeCases.find(c => c.id === State.currentFilesCaseId);
-  if (!kase) return;
-
-  const folderId = extractFolderIdFromLink(kase.driveLink);
+  const folderId = getCurrentFilesFolderId();
   if (!folderId) {
-    alert('Error: Carpeta de Google Drive no establecida para esta causa.');
+    alert('Error: Carpeta de Google Drive no establecida.');
     return;
   }
 
@@ -3848,8 +4089,8 @@ async function openClientSummaryModal(clientId) {
   // Set basic info
   document.getElementById('client-summary-name').innerText = `Ficha de Cliente: ${client.nombre}`;
   document.getElementById('client-summary-rut').innerText = `RUT / ID: ${client.rut}`;
-  document.getElementById('client-summary-phone').innerText = client.telefono || 'â€”';
-  document.getElementById('client-summary-email').innerText = client.email || 'â€”';
+  document.getElementById('client-summary-phone').innerText = client.telefono || '—';
+  document.getElementById('client-summary-email').innerText = client.email || '—';
   document.getElementById('client-summary-date').innerText = `Ingreso: ${client.fechaRegistro}`;
   
   // Set badge status
@@ -3857,8 +4098,37 @@ async function openClientSummaryModal(clientId) {
   badge.innerText = client.estado;
   badge.className = 'badge';
   if (client.estado === 'Activo') badge.classList.add('badge-success');
+  else if (client.estado === 'En espera' || client.estado === 'Cliente en espera') badge.classList.add('badge-info');
   else if (client.estado === 'Suspendido') badge.classList.add('badge-warning');
   else badge.classList.add('badge-primary');
+
+  // General Client Documents
+  const clientFilesBtn = document.getElementById('btn-client-summary-open-files');
+  if (clientFilesBtn) {
+    clientFilesBtn.onclick = () => {
+      hideModal('modal-client-summary');
+      openClientFilesModal(client.id);
+    };
+  }
+
+  const clientDriveLink = document.getElementById('client-summary-drive-link');
+  const clientFilesDesc = document.getElementById('client-summary-files-desc');
+  if (client.driveLink) {
+    if (clientDriveLink) {
+      clientDriveLink.href = client.driveLink;
+      clientDriveLink.style.display = 'inline-flex';
+    }
+    if (clientFilesDesc) {
+      clientFilesDesc.innerText = 'Carpeta sincronizada en Google Drive. Contiene documentos generales del cliente.';
+    }
+  } else {
+    if (clientDriveLink) {
+      clientDriveLink.style.display = 'none';
+    }
+    if (clientFilesDesc) {
+      clientFilesDesc.innerText = 'Archivos del cliente (cédula de identidad, poderes, antecedentes comunes a todas sus causas). Haz clic en "Ver / Subir Archivos" para acceder.';
+    }
+  }
 
   // List cases
   const clientCases = State.activeCases.filter(k => k.clientId === clientId);
